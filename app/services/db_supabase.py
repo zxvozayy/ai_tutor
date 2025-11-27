@@ -291,3 +291,4 @@ def get_recent_learning_events(limit: int = 5) -> List[Dict[str, Any]]:
         return res.data or []
     except Exception:
         return []
+    #naber akifim
