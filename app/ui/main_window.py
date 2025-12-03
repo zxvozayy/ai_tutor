@@ -73,6 +73,26 @@ class MainWindow(QtWidgets.QWidget):
     bot_text_signal = QtCore.Signal(str)
     stt_text_signal = QtCore.Signal(str, bool, list)
     vocab_explained_signal = QtCore.Signal(str, str)  # word, explanation
+    def _on_topic_changed(self, index: int):
+        """Topic değiştiğinde: free chat mi, senaryo mu, karar ver."""
+        topic_key = self.topic_combo.itemData(index, role=QtCore.Qt.UserRole)
+
+        # Free Chat seçildiyse
+        if topic_key == "__free__":
+            self.current_topic_key = None
+            self.current_topic_prompt = None
+            return
+
+        # Gerçek bir topic seçildi
+        self.current_topic_key = topic_key
+
+        # (İSTEĞE BAĞLI) Yeni chat açmak istiyorsan:
+        # New butonunun bağlı olduğu fonksiyonu buraya yaz
+        # Örnek: self.on_new_chat_clicked()
+        # self.on_new_chat_clicked()
+
+        # Senaryoya ait prompt + açılış mesajı için helper
+        self._start_topic_conversation(topic_key)
 
     def __init__(self, engine, parent=None):
         super().__init__(parent)
@@ -139,49 +159,86 @@ class MainWindow(QtWidgets.QWidget):
         }
 
         # Model for hierarchical topic selector
+        # ---------------- TOPIC DROPDOWN (Kategorili) ----------------
         self.topic_combo = QtWidgets.QComboBox()
+        self.topic_combo.setEditable(False)          # yazılabilir olmasın
+        self.topic_combo.setMinimumWidth(220)
+
+        # Persona ile aynı stil olsun istiyorsan:
+        # (persona_combo zaten tanımlıysa)
+        # self.topic_combo.setStyleSheet(self.persona_combo.styleSheet())
+
+        # Hiyerarşik model
         self.topic_model = QtGui.QStandardItemModel(self.topic_combo)
         self.topic_combo.setModel(self.topic_model)
 
         icons = {"Daily Life": "🏠", "Travel": "✈️", "Professional": "💼"}
 
+        # 0. satır: Free Chat
         free_item = QtGui.QStandardItem("🌐 Free Chat")
         free_item.setData("Free Chat", QtCore.Qt.UserRole)
         free_item.setEditable(False)
         self.topic_model.appendRow(free_item)
 
+        # Kategoriler + alt topicler
         for category, topics in self.topic_prompts.items():
+            # kategori satırı
             parent_item = QtGui.QStandardItem(f"{icons.get(category, '📘')}  {category}")
-            parent_item.setFlags(QtCore.Qt.ItemIsEnabled)
+            parent_item.setFlags(QtCore.Qt.ItemIsEnabled)  # seçili olmasın, sadece başlık
             parent_item.setEditable(False)
             parent_item.setFont(QtGui.QFont("Segoe UI", 10, QtGui.QFont.Bold))
             parent_item.setForeground(QtGui.QColor("#f6e58d"))
 
-            for topic in topics.keys():
-                child = QtGui.QStandardItem(f"• {topic}")
+            # alt topicler
+            for topic_name in topics.keys():
+                child = QtGui.QStandardItem(f"• {topic_name}")
                 child.setEditable(False)
-                child.setData(topic, QtCore.Qt.UserRole)
+                child.setData(topic_name, QtCore.Qt.UserRole)   # gerçek ad
                 child.setFont(QtGui.QFont("Segoe UI", 10))
                 child.setForeground(QtGui.QColor("#ecf0f1"))
                 parent_item.appendRow(child)
 
             self.topic_model.appendRow(parent_item)
 
+        # Görünüm: QTreeView (kategorili)
         view = QtWidgets.QTreeView()
         view.setHeaderHidden(True)
         view.setRootIsDecorated(True)
         view.setExpandsOnDoubleClick(False)
+        view.setEditTriggers(QtWidgets.QAbstractItemView.NoEditTriggers)  # EDİT YOK
+
         view.setStyleSheet("""
             QTreeView {
-                background:#2d3436; color:#ecf0f1;
-                border-radius:8px; padding:6px; outline:none; font-size:14px;
+                background: #2d3436;
+                color: #ecf0f1;
+                border-radius: 8px;
+                padding: 4px 6px;
+                outline: none;
+                font-size: 13px;
             }
-            QTreeView::item { height:26px; }
-            QTreeView::item:selected { background:#6c5ce7; color:white; border-radius:6px; }
+            QTreeView::item {
+                height: 24px;
+                padding: 2px 6px;
+            }
+            QTreeView::item:selected {
+                background: #6c5ce7;
+                color: #ffffff;
+            }
+            QTreeView::branch {
+                background: transparent;
+            }
+            QTreeView::branch:selected {
+                background: transparent;
+            }
         """)
+
         self.topic_combo.setView(view)
-        self.topic_combo.setCurrentIndex(0)
+        self.topic_combo.setCurrentIndex(0)   # başlangıç: Free Chat
         self.topic_combo.view().clicked.connect(self._on_topic_view_clicked)
+
+        # state değişkenleri
+        self.current_topic_key = None
+        self.current_topic_prompt = None
 
         # Persona selection
         self.persona_combo = QtWidgets.QComboBox()
@@ -203,7 +260,8 @@ class MainWindow(QtWidgets.QWidget):
             QComboBox:hover { border:1px solid #a29bfe; }
             QComboBox::drop-down { border:none; width:25px; }
         """)
-
+        # 🔹 Topic, persona ile aynı görünsün
+        self.topic_combo.setStyleSheet(self.persona_combo.styleSheet())
         # Simple static avatar (FR25)
         self.ai_avatar_label = QtWidgets.QLabel()
         avatar_pix = QtGui.QPixmap("app/resources/images/ai_tutor_logo.png")
@@ -360,27 +418,124 @@ class MainWindow(QtWidgets.QWidget):
 
         # After sessions are ready, run placement test if needed
         QtCore.QTimer.singleShot(800, lambda: run_placement_test_if_needed(self))
-
-    # ---------- topic tree handler ----------
     def _on_topic_view_clicked(self, index: QtCore.QModelIndex):
-        """Click: expand/collapse category; select leaf topic."""
+        """Kategoriye tıklayınca aç/kapa, alt topic'e tıklayınca Tutor başlatsın."""
         item = self.topic_model.itemFromIndex(index)
+        if item is None:
+            return
+
         view: QtWidgets.QTreeView = self.topic_combo.view()  # type: ignore
 
+        # 0. satır: Free Chat
+        first_item = self.topic_model.item(0)
+        if item is first_item and not item.hasChildren():
+            self.topic_combo.setCurrentIndex(0)
+            self.topic_combo.setCurrentText(item.text())
+            self.topic_combo.hidePopup()
+
+            self.current_topic_key = None
+            self.current_topic_prompt = None
+            self.append_bot("Switched to Free Chat. You can talk about anything you like 🙂", [])
+            return
+
+        # KATEGORİ satırı (Daily Life, Travel, Professional) → sadece aç/kapa
         if item.hasChildren():
             if view.isExpanded(index):
                 view.collapse(index)
             else:
                 view.expand(index)
             QtCore.QTimer.singleShot(0, self.topic_combo.showPopup)
-            self.topic_combo.setCurrentIndex(-1)
             return
 
-        # leaf item
-        value = item.data(QtCore.Qt.UserRole) or item.text()
-        value = str(value).lstrip("• ").strip()
-        self.topic_combo.setCurrentText(value)
+        # ALT TOPIC (At the Restaurant, Hotel Check-in, ...)
+        topic_name = item.data(QtCore.Qt.UserRole) or item.text()
+        topic_name = str(topic_name).lstrip("• ").strip()
+
+        # Combo üstündeki yazıyı güncelle
+        self.topic_combo.setCurrentText(f"• {topic_name}")
         self.topic_combo.hidePopup()
+
+        # Seçili topic'i kaydet
+        self.current_topic_key = topic_name
+
+        # İstersen gerçekten yeni chat aç:
+        try:
+            self.on_new_chat_clicked()   # New butonun fonksiyon adı buysa; farklıysa değiştir
+        except AttributeError:
+            pass
+
+        # topic_prompts içinden bu topic'in açıklamasını bul
+        topic_prompt = ""
+        for category, topics in self.topic_prompts.items():
+            if topic_name in topics:
+                topic_prompt = topics[topic_name]
+                break
+
+        self.current_topic_prompt = topic_prompt
+
+        # Tutor açılış mesajı
+        opening = (
+            f"Great, you chose the topic **{topic_name}**.\n\n"
+            f"{topic_prompt}\n\n"
+            f"Let's start! Say something and I'll reply in this scenario 😊"
+        )
+        self.append_bot(opening, new_words=[])
+
+    # ---------- topic tree handler ----------
+    def _start_topic_conversation(self, topic_key: str) -> None:
+        """
+        Seçilen topic için system prompt'u ayarla ve varsa açılış mesajını yaz.
+        self.topic_prompts sözlüğünden çekiyoruz.
+        """
+        topic_conf = None
+
+        # topic_prompts içinden topic'i bul
+        for category, topics in self.topic_prompts.items():
+            if topic_key in topics:
+                topic_conf = topics[topic_key]
+                break
+
+        if topic_conf is None:
+            # bulunamazsa free chat gibi davran
+            self.current_topic_prompt = None
+            return
+
+        # system prompt'u sakla (Gemini çağrısında kullanacaksın)
+        self.current_topic_prompt = topic_conf.get("system", "")
+
+        # Açılış cümlesi (ör: "You are at a restaurant, the waiter greets you...")
+        opening = topic_conf.get("opening", "")
+        if opening:
+            # kendi bot-yazdırma fonksiyonunu kullan
+            self.append_bot(opening, new_words=[])
+
+
+    def _start_topic_conversation(self, topic_key: str) -> None:
+        """
+        Seçilen topic için system prompt'u ayarla ve varsa açılış mesajını yaz.
+        self.topic_prompts sözlüğünden çekiyoruz.
+        """
+        topic_conf = None
+
+        # topic_prompts içinden topic'i bul
+        for category, topics in self.topic_prompts.items():
+            if topic_key in topics:
+                topic_conf = topics[topic_key]
+                break
+
+        if topic_conf is None:
+            # bulunamazsa free chat gibi davran
+            self.current_topic_prompt = None
+            return
+
+        # system prompt'u sakla (Gemini çağrısında kullanacaksın)
+        self.current_topic_prompt = topic_conf.get("system", "")
+
+        # Açılış cümlesi (ör: "You are at a restaurant, the waiter greets you...")
+        opening = topic_conf.get("opening", "")
+        if opening:
+            # kendi bot-yazdırma fonksiyonunu kullan
+            self.append_bot(opening, new_words=[])
 
     # ---------- sessions UI/load ----------
     def _load_sessions_and_select_default(self):
