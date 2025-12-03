@@ -285,8 +285,8 @@ class MainWindow(QtWidgets.QWidget):
 
         # Top bar: avatar + topic + persona
         top_bar = QtWidgets.QHBoxLayout()
-        top_bar.addWidget(self.ai_avatar_label)
-        top_bar.addSpacing(8)
+        #top_bar.addWidget(self.ai_avatar_label)
+        #top_bar.addSpacing(8)
 
         lbl_topic = QtWidgets.QLabel("🗣️ Topic:")
         lbl_topic.setStyleSheet("font-weight:bold; color:#ffbe76; font-size:14px;")
