@@ -4,9 +4,6 @@ from __future__ import annotations
 import html
 import re
 from typing import Iterable, Set
-from html import escape as html_escape
-from PySide6.QtGui import QPixmap, QPainter, QPainterPath
-
 
 from PySide6 import QtWidgets, QtGui, QtCore
 
@@ -18,6 +15,7 @@ class VocabBrowser(QtWidgets.QTextBrowser):
     - can underline 'new vocabulary' words when vocab mode is enabled
     - underlines ONLY in tutor (AI) messages, not user messages
     - emits wordActivated(word, full_context) when a new word is double-clicked
+      BUT ONLY when vocab mode is enabled
     """
 
     wordActivated = QtCore.Signal(str, str)  # word, full context
@@ -28,43 +26,6 @@ class VocabBrowser(QtWidgets.QTextBrowser):
         self._new_words: Set[str] = set()
         self._has_thinking = False
         self._vocab_mode_enabled = False
-    def _make_round_icon(self, size: int = 18) -> str:
-        """Yuvarlak, şeffaf PNG'yi base64 olarak döndürür."""
-        path = "app/resources/images/ai_tutor_logo.png"
-
-        pix = QtGui.QPixmap(path)
-        if pix.isNull():
-            return ""
-
-        # Logoyu küçült
-        pix = pix.scaled(
-            size, size,
-            QtCore.Qt.KeepAspectRatio,
-            QtCore.Qt.SmoothTransformation
-        )
-
-        # Şeffaf zeminli boş pixmap
-        rounded = QtGui.QPixmap(size, size)
-        rounded.fill(QtCore.Qt.transparent)
-
-        # Daire maskesi çiz
-        painter = QtGui.QPainter(rounded)
-        painter.setRenderHint(QtGui.QPainter.Antialiasing)
-        circle = QtGui.QPainterPath()
-        circle.addEllipse(0, 0, size, size)
-        painter.setClipPath(circle)
-        painter.drawPixmap(0, 0, pix)
-        painter.end()
-
-        # PNG'yi base64 string'e çevir
-        ba = QtCore.QByteArray()
-        buf = QtCore.QBuffer(ba)
-        buf.open(QtCore.QIODevice.WriteOnly)
-        rounded.save(buf, "PNG")
-        buf.close()
-
-        b64 = bytes(ba.toBase64()).decode()
-        return f"data:image/png;base64,{b64}"
 
     # ---------- helpers ----------
     @staticmethod
@@ -142,7 +103,7 @@ class VocabBrowser(QtWidgets.QTextBrowser):
         """
         Turn vocabulary highlighting on or off.
         - When enabled, all known new words in tutor messages are underlined.
-        - When disabled, underlines are removed.
+        - When disabled, underlines are removed and double-click does nothing special.
         """
         self._vocab_mode_enabled = enabled
         if enabled:
@@ -153,19 +114,7 @@ class VocabBrowser(QtWidgets.QTextBrowser):
     def append_user(self, text: str) -> None:
         safe = self._escape_html(text)
         safe = safe.replace("\n", "<br>")
-
-        html = f"""
-        <table cellspacing="0" cellpadding="0" style="margin:2px 0;">
-          <tr>
-            <td style="width:26px; vertical-align:top; padding-top:2px;"></td>
-            <td style="vertical-align:top;">
-                <b>You:</b> {safe}
-            </td>
-          </tr>
-        </table>
-        """
-
-        self.append(html)
+        self.append(f"<p><b>You:</b><br>{safe}</p>")
 
     def show_thinking(self, text: str = "⏳ Thinking…") -> None:
         safe = self._escape_html(text)
@@ -182,38 +131,21 @@ class VocabBrowser(QtWidgets.QTextBrowser):
         self._remove_thinking_if_any()
 
         safe = self._escape_html(text)
+        # markdown-style **bold**
         safe = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", safe)
         safe = safe.replace("\n", "<br>")
 
-        # Yuvarlak küçük logo (base64)
-        logo_b64 = self._make_round_icon(18)
-        if logo_b64:
-            icon_html = (
-                f'<img src="{logo_b64}" width="18" height="18" '
-                f'style="vertical-align:middle;">'
-            )
-        else:
-            icon_html = ""
+        self.append(f"<p><b>Tutor:</b><br>{safe}</p>")
 
-        # 2 sütunlu tablo: solda ikon, sağda metin
-        html = f"""
-        <table cellspacing="0" cellpadding="0" style="margin:2px 0;">
-          <tr>
-            <td style="width:26px; vertical-align:top; padding-top:2px;">
-                {icon_html}
-            </td>
-            <td style="vertical-align:top;">
-                <b>Tutor:</b> {safe}
-            </td>
-          </tr>
-        </table>
-        """
-
-        self.append(html)
+        # Now apply underlines on the whole document (only tutor blocks, only if mode enabled)
         self._apply_underlines()
 
     # ---------- double-click handling ----------
     def mouseDoubleClickEvent(self, event: QtGui.QMouseEvent) -> None:
+        # 🚫 If vocab mode is OFF, do not trigger vocab behavior at all
+        if not self._vocab_mode_enabled:
+            return super().mouseDoubleClickEvent(event)
+
         cursor = self.cursorForPosition(event.pos())
         cursor.select(QtGui.QTextCursor.WordUnderCursor)
         raw = cursor.selectedText()
