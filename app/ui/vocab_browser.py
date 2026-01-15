@@ -3,8 +3,8 @@ from __future__ import annotations
 
 import html
 import re
-from pathlib import Path
 from typing import Iterable, Set
+from pathlib import Path
 
 from PySide6 import QtWidgets, QtGui, QtCore
 
@@ -24,13 +24,18 @@ class VocabBrowser(QtWidgets.QTextBrowser):
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
         self.setReadOnly(True)
-
         self._new_words: Set[str] = set()
         self._has_thinking = False
         self._vocab_mode_enabled = False
-        self._messages_html = []  # Store all messages as HTML
 
+        # Cache icon URI once (UI only)
         self._tutor_icon_uri = self._make_file_uri("app/resources/images/ai_tutor_icon.png")
+
+        # Make paragraphs look clean (fix "yamuk" feeling)
+        self.document().setDefaultStyleSheet("""
+            p { margin: 6px 0 10px 0; line-height: 1.45; }
+            b { font-weight: 700; }
+        """)
 
     # ---------- helpers ----------
     @staticmethod
@@ -39,6 +44,10 @@ class VocabBrowser(QtWidgets.QTextBrowser):
 
     @staticmethod
     def _make_file_uri(rel_path: str) -> str:
+        """
+        Convert a relative path to a file URI that QTextBrowser can load.
+        If the file doesn't exist, returns empty string (icon just won't render).
+        """
         try:
             p = Path(rel_path).resolve()
             if p.exists():
@@ -47,90 +56,28 @@ class VocabBrowser(QtWidgets.QTextBrowser):
             pass
         return ""
 
-    def _tutor_header_inline(self) -> str:
+    def _tutor_header_html(self) -> str:
         """
-        IMPORTANT: Keep literal 'Tutor:' visible because underline logic checks for it.
+        IMPORTANT: keeps literal 'Tutor:' text visible so underline logic still works.
+        Also pushes icon a bit down so it doesn't "float".
         """
         if self._tutor_icon_uri:
             return (
-                f'<img src="{self._tutor_icon_uri}" width="18" height="18" '
-                f'style="vertical-align:middle; border-radius:9px; margin-right:6px;" />'
-                f'<span style="font-weight:700; color:#3B2FEA;">Tutor:</span>'
+                "<span style='display:inline-flex; align-items:baseline; gap:8px;'>"
+                f"  <img src='{self._tutor_icon_uri}' width='20' height='20' "
+                "       style='margin-top:6px; border-radius:50%; "
+                "              border:1px solid #E9EAF2; padding:2px; background:#FFFFFF;' />"
+                "  <span style='font-weight:800; color:#3B2FEA;'>Tutor:</span>"
+                "</span>"
             )
-        return '<span style="font-weight:700; color:#3B2FEA;">Tutor:</span>'
-
-    def _render_all_messages(self) -> None:
-        """Re-render all stored messages."""
-        full_html = """
-<!DOCTYPE html>
-<html>
-<head>
-<style>
-body {
-    font-family: 'Segoe UI', Arial, sans-serif;
-    font-size: 14px;
-    color: #1F2330;
-    padding: 10px;
-    margin: 0;
-}
-.message {
-    margin: 10px 0;
-    clear: both;
-}
-.message-left {
-    text-align: left;
-}
-.message-right {
-    text-align: right;
-}
-.bubble {
-    display: inline-block;
-    max-width: 70%;
-    min-width: 150px;
-    padding: 12px 16px;
-    border-radius: 16px;
-    text-align: left;
-    word-wrap: break-word;
-}
-.bubble-left {
-    background: #FFFFFF;
-    border: 1px solid #E0E2E8;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-}
-.bubble-right {
-    background: #F4F4F8;
-    border: 1px solid #E0E2E8;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-}
-.header {
-    margin-bottom: 6px;
-    font-weight: 700;
-    color: #3B2FEA;
-}
-.content {
-    line-height: 1.5;
-}
-</style>
-</head>
-<body>
-"""
-
-        for msg_html in self._messages_html:
-            full_html += msg_html
-
-        full_html += """
-</body>
-</html>
-"""
-
-        self.setHtml(full_html)
-
-        # Scroll to bottom
-        scrollbar = self.verticalScrollBar()
-        scrollbar.setValue(scrollbar.maximum())
+        return "<span style='font-weight:800; color:#3B2FEA;'>Tutor:</span>"
 
     # ---------- underline logic ----------
     def _apply_underlines(self) -> None:
+        """
+        Apply underline formatting to all known 'new words'
+        BUT ONLY in blocks that belong to the tutor (AI).
+        """
         if not self._vocab_mode_enabled or not self._new_words:
             return
 
@@ -155,21 +102,41 @@ body {
             match_cursor = doc.find(regex, search_cursor)
             while not match_cursor.isNull():
                 block_text = match_cursor.block().text()
+                # 🔥 only underline inside tutor messages
                 if "Tutor:" in block_text and "You:" not in block_text:
                     match_cursor.mergeCharFormat(fmt)
+
                 match_cursor = doc.find(regex, match_cursor)
 
         cursor.endEditBlock()
 
     def _clear_vocab_formatting(self) -> None:
+        """
+        Remove underline formatting from the entire document
+        (without touching bold/color etc.).
+        """
         cursor = self.textCursor()
         cursor.beginEditBlock()
+
         cursor.select(QtGui.QTextCursor.Document)
         fmt = QtGui.QTextCharFormat()
         fmt.setFontUnderline(False)
         fmt.setUnderlineStyle(QtGui.QTextCharFormat.NoUnderline)
         cursor.mergeCharFormat(fmt)
+
         cursor.endEditBlock()
+
+    def _remove_thinking_if_any(self) -> None:
+        """Remove the last 'Thinking…' line if present."""
+        if not self._has_thinking and not self.toPlainText().strip().endswith("Thinking…"):
+            return
+
+        cursor = self.textCursor()
+        cursor.movePosition(QtGui.QTextCursor.End)
+        cursor.select(QtGui.QTextCursor.BlockUnderCursor)
+        cursor.removeSelectedText()
+        cursor.deletePreviousChar()
+        self._has_thinking = False
 
     # ---------- public API ----------
     def set_vocab_mode(self, enabled: bool) -> None:
@@ -181,65 +148,33 @@ body {
 
     def append_user(self, text: str) -> None:
         safe = self._escape_html(text).replace("\n", "<br>")
-
-        msg_html = f'''
-<div class="message message-right">
-    <div class="bubble bubble-right">
-        <div class="header">You:</div>
-        <div class="content">{safe}</div>
-    </div>
-</div>
-'''
-
-        self._messages_html.append(msg_html)
-        self._render_all_messages()
+        # Keep it simple & stable
+        self.append(f"<p><b>You:</b><br>{safe}</p>")
 
     def show_thinking(self, text: str = "⏳ Thinking…") -> None:
         safe = self._escape_html(text).replace("\n", "<br>")
-        header = self._tutor_header_inline()
-
-        msg_html = f'''
-<div class="message message-left" id="thinking-message">
-    <div class="bubble bubble-left">
-        <div class="header">{header}</div>
-        <div class="content">{safe}</div>
-    </div>
-</div>
-'''
-
-        self._messages_html.append(msg_html)
+        header = self._tutor_header_html()
+        self.append(f"<p>{header}<br>{safe}</p>")
         self._has_thinking = True
-        self._render_all_messages()
 
     def append_bot(self, text: str, new_words: Iterable[str]) -> None:
+        # Track new words globally for this chat (for all tutor messages)
         for w in new_words:
             if w:
                 self._new_words.add(w.lower())
 
-        # Remove thinking message if present
-        if self._has_thinking and self._messages_html:
-            # Remove the last message if it's a thinking message
-            if "thinking-message" in self._messages_html[-1] or "Thinking" in self._messages_html[-1]:
-                self._messages_html.pop()
-            self._has_thinking = False
+        # Remove thinking placeholder (if it exists)
+        self._remove_thinking_if_any()
 
         safe = self._escape_html(text)
+        # markdown-style **bold**
         safe = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", safe)
         safe = safe.replace("\n", "<br>")
 
-        header = self._tutor_header_inline()
+        header = self._tutor_header_html()
+        self.append(f"<p>{header}<br>{safe}</p>")
 
-        msg_html = f'''
-<div class="message message-left">
-    <div class="bubble bubble-left">
-        <div class="header">{header}</div>
-        <div class="content">{safe}</div>
-    </div>
-</div>
-'''
-
-        self._messages_html.append(msg_html)
-        self._render_all_messages()
+        # Underline only in tutor blocks (only if mode enabled)
         self._apply_underlines()
 
     # ---------- double-click handling ----------
