@@ -46,7 +46,8 @@ def strip_lang_tags(s: str) -> str:
     for t in LANG_TAGS:
         out = out.replace(t, "")
     return out.strip()
-
+def strip_html(text):
+    return re.sub(r"<.*?>", "", text)
 
 def run_placement_test_if_needed(parent_widget: QtWidgets.QWidget) -> None:
     """
@@ -1512,33 +1513,24 @@ Top problematic words/phrases: {top_words}
             self.bot_text_signal.emit(report)
 
         threading.Thread(target=worker, daemon=True).start()
-
-    # =============================================================
+     # =============================================================
     #  UI helpers & vocab
     # =============================================================
     def _append_bot(self, text: str):
-        """Append bot message with vocab highlighting support"""
+        # HTML etiketlerini kaldır
+        text = strip_html(text)
+
         known = set()
         if self.user_id:
             try:
                 known = get_known_words_set(self.user_id)
             except Exception:
                 known = set()
+
         new_words = find_new_vocabulary(text, known_words=known)
 
-        is_summary = "summary-report" in text
-        if is_summary:
-            formatted = text
-        else:
-            formatted = text  # VocabBrowser handles markdown conversion
-
-        # Use VocabBrowser's append_bot method
-        self.history.append_bot(formatted, new_words)
-
-    def _append_bot_simple(self, text: str):
-        """Simple bot message without vocab highlighting (used for system messages)"""
-        # Use VocabBrowser's append_bot with empty new_words list
-        self.history.append_bot(text, [])
+        self.history.append_bot(text, new_words)
+        
 
     def _on_vocab_word_activated(self, word: str, context: str):
         def worker():
