@@ -552,12 +552,23 @@ class MainWindow(QtWidgets.QMainWindow):
                 role = m.get("role")
                 content = (m.get("content") or "")
                 if role == "user":
-                    self.history.append_user(content)
+                    # Display user message
+                    safe = self._escape_html(content)
+                    self.history.append(f"<p><b>You:</b><br>{safe}</p>")
                 else:
+                    # Display bot message with vocab highlighting
                     new_words = find_new_vocabulary(content, known_words=known)
-                    self.history.append_bot(content, new_words)
+                    formatted = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", content).replace("\n", "<br>")
 
-            self.history.set_vocab_mode(self.vocab_mode_btn.isChecked())
+                    # Use append_bot if VocabBrowser supports it, otherwise use append
+                    if hasattr(self.history, 'append_bot'):
+                        self.history.append_bot(formatted, new_words)
+                    else:
+                        self.history.append(f"<p><b>Tutor:</b><br>{formatted}</p>")
+
+            # Set vocab mode if available
+            if hasattr(self.history, 'set_vocab_mode') and callable(getattr(self.history, 'set_vocab_mode')):
+                self.history.set_vocab_mode(self.vocab_mode_btn.isChecked())
         except Exception as e:
             self.history.append(f"<p><i>Failed to load messages: {e}</i></p>")
 
@@ -1009,7 +1020,14 @@ class MainWindow(QtWidgets.QMainWindow):
             }
             p { margin: 2px 0 4px 0; line-height: 1.3; }
             b { color: #f1c40f; }
-            a { color: #74b9ff; }
+            a { color: #74b9ff; text-decoration: none; }
+            a.grammar-error {
+                color: #f39c12;
+                text-decoration: underline wavy;
+                text-decoration-color: #e74c3c;
+                text-underline-offset: 2px;
+                cursor: help;
+            }
 
             /* Summary report tweaks */
             .summary-report { margin-top: 4px; }
@@ -1046,10 +1064,23 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def _build_grammar_html(self, result: dict) -> str:
         """
-        GeminiEngine.check_grammar output to HTML with underlined incorrect words.
+        FIXED: Build HTML with proper grammar error highlighting.
+        Expects result format:
+        {
+            "original": "original text",
+            "corrected": "corrected text",
+            "errors": [
+                {
+                    "original": "wrong word/phrase",
+                    "suggestion": "correct word/phrase",
+                    "start": int,  # character position
+                    "end": int     # character position
+                }
+            ]
+        }
         """
-        original = result.get("original") or ""
-        errors = result.get("errors") or []
+        original = result.get("original", "")
+        errors = result.get("errors", [])
 
         if not original:
             return ""
@@ -1057,41 +1088,53 @@ class MainWindow(QtWidgets.QMainWindow):
         if not errors:
             return self._escape_html(original)
 
+        # Sort errors by start position
         try:
-            errors = sorted(errors, key=lambda e: int(e.get("start", 0)))
+            sorted_errors = sorted(errors, key=lambda e: e.get("start", 0))
         except Exception:
-            pass
+            # If sorting fails, just use as is
+            sorted_errors = errors
 
         html_parts = []
         pos = 0
-        n = len(original)
 
-        for err in errors:
+        for err in sorted_errors:
             try:
-                start = int(err.get("start", 0))
-                end = int(err.get("end", start))
-            except Exception:
+                start = err.get("start", 0)
+                end = err.get("end", start)
+                suggestion = err.get("suggestion", "")
+
+                # Validate indices
+                if start < 0 or end > len(original) or start >= end or start < pos:
+                    continue
+
+                # Add text before error
+                if pos < start:
+                    normal_chunk = original[pos:start]
+                    html_parts.append(self._escape_html(normal_chunk))
+
+                # Add error with underline and link
+                error_text = original[start:end]
+                suggestion_escaped = self._escape_html(suggestion)
+                error_escaped = self._escape_html(error_text)
+
+                # Create grammar error link with custom styling
+                href = "grammar://" + urllib.parse.quote(suggestion)
+                html_parts.append(
+                    f'<a href="{href}" class="grammar-error" '
+                    f'title="Suggestion: {suggestion_escaped}">'
+                    f'{error_escaped}</a>'
+                )
+
+                pos = end
+
+            except Exception as e:
+                # Skip problematic errors
+                print(f"Error processing grammar error: {e}")
                 continue
 
-            if start < 0 or end > n or start >= end or start < pos:
-                continue
-
-            normal_chunk = original[pos:start]
-            html_parts.append(self._escape_html(normal_chunk))
-
-            wrong = original[start:end]
-            suggestion = err.get("suggestion") or ""
-            href = "grammar://" + urllib.parse.quote(suggestion)
-
-            html_parts.append(
-                f'<a href="{href}" '
-                f'style="text-decoration: underline; text-decoration-color: #f1c40f; color: #f1c40f;">'
-                f'{self._escape_html(wrong)}</a>'
-            )
-
-            pos = end
-
-        if pos < n:
+        # Add remaining text
+        if pos < len(original):
             html_parts.append(self._escape_html(original[pos:]))
 
         return "".join(html_parts)
@@ -1118,7 +1161,11 @@ class MainWindow(QtWidgets.QMainWindow):
         except Exception as e:
             self.history.append(f"<p><i>Save error (user): {e}</i></p>")
 
-        self.history.show_thinking("⏳ Thinking…")
+        # Show thinking indicator
+        if hasattr(self.history, 'show_thinking') and callable(getattr(self.history, 'show_thinking')):
+            self.history.show_thinking("⏳ Thinking…")
+        else:
+            self.history.append("<p><i>⏳ Thinking…</i></p>")
 
         # ---- persona + topic prompt shaping ----
         topic = self.topic_combo.currentText().lstrip("• ").lstrip("🌐 ").strip()
@@ -1163,40 +1210,52 @@ class MainWindow(QtWidgets.QMainWindow):
         threading.Thread(target=worker, daemon=True).start()
 
     def _append_user_with_grammar(self, text: str):
+        """FIXED: Properly check grammar and display errors"""
         checker = getattr(self.engine, "check_grammar", None)
         if not callable(checker):
+            # No grammar checker available, just show plain text
             self._append_user(text)
             return
 
         try:
+            # Call grammar checker
             result = checker(text)
+
+            # Validate result format
+            if not isinstance(result, dict):
+                self._append_user(text)
+                return
+
         except Exception as e:
+            # Grammar check failed, show plain text
             self._append_user(text)
-            self.history.append(f"<p><i>Grammar check failed: {e}</i></p>")
+            print(f"Grammar check error: {e}")
             return
 
+        # Build HTML with error highlighting
         html = self._build_grammar_html(result)
         if not html:
             self._append_user(text)
             return
 
+        # Display user message with grammar highlights
         self.history.append(f"<p><b>You:</b><br>{html}</p>")
 
-        # store for summary reports
-        self._grammar_events.append(
-            {
-                "original": result.get("original", text),
-                "corrected": result.get("corrected", text),
-                "errors": result.get("errors", []) or [],
-            }
-        )
+        # Store for summary reports
+        self._grammar_events.append({
+            "original": result.get("original", text),
+            "corrected": result.get("corrected", text),
+            "errors": result.get("errors", []),
+        })
 
-        if result.get("errors"):
-            corrected = (result.get("corrected") or "").strip()
-            if corrected:
+        # Show corrected version if there are errors
+        errors = result.get("errors", [])
+        if errors and len(errors) > 0:
+            corrected = result.get("corrected", "").strip()
+            if corrected and corrected != text:
                 safe = self._escape_html(corrected)
                 self.history.append(
-                    f"<p><i>✅ Correct sentence:</i><br>{safe}</p>"
+                    f"<p><i style='color:#2ecc71;'>✅ Correct version:</i> {safe}</p>"
                 )
 
     # =============================================================
@@ -1460,7 +1519,10 @@ Top problematic words/phrases: {top_words}
             return
 
         # placeholder
-        self.history.show_thinking("⏳ Thinking…")
+        if hasattr(self.history, 'show_thinking') and callable(getattr(self.history, 'show_thinking')):
+            self.history.show_thinking("⏳ Thinking…")
+        else:
+            self.history.append("<p><i>⏳ Thinking…</i></p>")
 
         def worker():
             try:
@@ -1476,7 +1538,9 @@ Top problematic words/phrases: {top_words}
     #  UI helpers & vocab
     # =============================================================
     def _append_user(self, text):
-        self.history.append_user(text)
+        """Display user message in chat history"""
+        safe = self._escape_html(text)
+        self.history.append(f"<p><b>You:</b><br>{safe}</p>")
 
     def _append_bot(self, text: str):
         """Append bot message with vocab highlighting support"""
@@ -1506,7 +1570,12 @@ Top problematic words/phrases: {top_words}
             html = f"<div class='summary-wrapper'><p><b>Tutor:</b></p>{formatted}</div>"
             self.history.append(html)
         else:
-            self.history.append_bot(formatted, new_words)
+            # Try to use VocabBrowser's append_bot if available
+            if hasattr(self.history, 'append_bot') and callable(getattr(self.history, 'append_bot')):
+                self.history.append_bot(formatted, new_words)
+            else:
+                # Fallback to simple append
+                self.history.append(f"<p><b>Tutor:</b><br>{formatted}</p>")
 
     def _append_bot_simple(self, text: str):
         """Simple bot message without vocab highlighting (used for system messages)"""
@@ -1555,7 +1624,8 @@ Top problematic words/phrases: {top_words}
             msg.exec()
 
     def _on_vocab_mode_toggled(self, on: bool):
-        self.history.set_vocab_mode(on)
+        if hasattr(self.history, 'set_vocab_mode') and callable(getattr(self.history, 'set_vocab_mode')):
+            self.history.set_vocab_mode(on)
 
     # =============================================================
     #  Event filter (grammar hover tooltips)
@@ -1569,7 +1639,7 @@ Top problematic words/phrases: {top_words}
                 if suggestion:
                     QtWidgets.QToolTip.showText(
                         event.globalPos(),
-                        f"Correct: {suggestion}",
+                        f"✅ Correct: {suggestion}",
                     )
             else:
                 QtWidgets.QToolTip.hideText()
@@ -1607,19 +1677,40 @@ if __name__ == "__main__":
             return f"Hello! You asked about: {prompt[:80]} ..."
 
         def check_grammar(self, text: str):
-            if "goed" in text:
+            """Mock grammar checker for testing"""
+            # Simulate finding "goed" error
+            if "goed" in text.lower():
+                idx = text.lower().index("goed")
                 return {
                     "original": text,
-                    "corrected": text.replace("goed", "went"),
+                    "corrected": text[:idx] + "went" + text[idx+4:],
                     "errors": [
                         {
-                            "original": "goed",
+                            "original": text[idx:idx+4],
                             "suggestion": "went",
-                            "start": text.index("goed"),
-                            "end": text.index("goed") + 4,
+                            "start": idx,
+                            "end": idx + 4,
                         }
                     ],
                 }
+            # Simulate other common errors
+            elif "your" in text.lower() and "you're" not in text.lower():
+                # Check if "your" should be "you're"
+                patterns = ["your doing", "your going", "your coming"]
+                for pattern in patterns:
+                    if pattern in text.lower():
+                        idx = text.lower().index(pattern)
+                        return {
+                            "original": text,
+                            "corrected": text[:idx] + "you're" + text[idx+4:],
+                            "errors": [{
+                                "original": "your",
+                                "suggestion": "you're",
+                                "start": idx,
+                                "end": idx + 4,
+                            }],
+                        }
+
             return {"original": text, "corrected": text, "errors": []}
 
     app = QtWidgets.QApplication(sys.argv)
