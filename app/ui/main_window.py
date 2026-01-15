@@ -216,6 +216,32 @@ QTabBar::tab:selected {
 
 /* ===== Splitter handle ===== */
 QSplitter::handle { background: #E9EAF2; }
+/* ===== ComboBox popup (dropdown list) ===== */
+QComboBox QAbstractItemView {
+    background: #FFFFFF;
+    border: 1px solid #E9EAF2;
+    border-radius: 12px;
+    padding: 6px;
+    outline: 0;
+}
+
+QComboBox QAbstractItemView::item {
+    background: transparent;
+    padding: 8px 10px;
+    border-radius: 8px;
+    color: #1F2330;
+}
+
+QComboBox QAbstractItemView::item:hover {
+    background: #F2F3FA;
+}
+
+QComboBox QAbstractItemView::item:selected {
+    background: #EDEBFF;
+    color: #3B2FEA;
+    font-weight: 600;
+}
+
         """)
 
 
@@ -390,6 +416,32 @@ QSplitter::handle { background: #E9EAF2; }
                 color: #3B2FEA;
                 font-weight: 600;
             }
+            /* ===== Topic Tree View ===== */
+            QTreeView {
+                background: #FFFFFF;
+                border: 1px solid #E9EAF2;
+                border-radius: 14px;
+                padding: 6px 8px;
+                outline: none;
+            }
+            
+            QTreeView::item {
+                background: transparent;
+                padding: 6px 8px;
+                border-radius: 10px;
+                color: #1F2330;
+            }
+            
+            QTreeView::item:hover {
+                background: #F2F3FA;
+            }
+            
+            QTreeView::item:selected {
+                background: #EDEBFF;
+                color: #3B2FEA;
+                font-weight: 600;
+            }
+
         """)
 
         self.topic_combo.setView(view)
@@ -412,16 +464,14 @@ QSplitter::handle { background: #E9EAF2; }
         ])
         self.persona_combo.setCurrentIndex(0)
         self.persona_combo.setToolTip("Select AI's personality style")
-        self.persona_combo.setStyleSheet("""
-            QComboBox {
-                background:#2c3e50; color:#f1f2f6; border:1px solid #7f8c8d;
-                border-radius:8px; padding:6px 10px; font-size:14px; min-width:220px;
-            }
-            QComboBox:hover { border:1px solid #a29bfe; }
-            QComboBox::drop-down { border:none; width:25px; }
-        """)
-        # Topic combo same style
-        self.topic_combo.setStyleSheet(self.persona_combo.styleSheet())
+        # NOTE: Do NOT override QSS here; we rely on the global pastel dashboard theme.
+        # (Previously this combo had a dark, custom stylesheet which made the topbar look broken.)
+
+        # Keep both combos visually consistent and compact
+        self.topic_combo.setMinimumWidth(260)
+        self.persona_combo.setMinimumWidth(260)
+        self.topic_combo.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Fixed)
+        self.persona_combo.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Fixed)
 
         # Simple static avatar
         self.ai_avatar_label = QtWidgets.QLabel()
@@ -467,6 +517,34 @@ QSplitter::handle { background: #E9EAF2; }
         history_frame.setObjectName("Card")
         history_l = QtWidgets.QVBoxLayout(history_frame)
         history_l.setContentsMargins(14, 14, 14, 14)
+
+        # Small header inside the chat card: shows tutor logo next to "Tutor"
+        # (Does not change message logic; purely visual.)
+        tutor_header = QtWidgets.QWidget()
+        tutor_h = QtWidgets.QHBoxLayout(tutor_header)
+        tutor_h.setContentsMargins(0, 0, 0, 8)
+        tutor_h.setSpacing(8)
+
+        tutor_logo = QtWidgets.QLabel()
+        logo_pix = QtGui.QPixmap("app/resources/images/ai_tutor_logo.png")
+        if not logo_pix.isNull():
+            tutor_logo.setFixedSize(22, 22)
+            tutor_logo.setPixmap(
+                make_round_pixmap(logo_pix, 22).scaled(
+                    22, 22, QtCore.Qt.KeepAspectRatio, QtCore.Qt.SmoothTransformation
+                )
+            )
+        else:
+            tutor_logo.setText("AI")
+
+        tutor_title = QtWidgets.QLabel("Tutor")
+        tutor_title.setStyleSheet("font-weight:700; color:#3B2FEA; background:transparent;")
+
+        tutor_h.addWidget(tutor_logo)
+        tutor_h.addWidget(tutor_title)
+        tutor_h.addStretch(1)
+
+        history_l.addWidget(tutor_header)
         history_l.addWidget(self.history)
         chat_v.addWidget(history_frame, 1)
 
