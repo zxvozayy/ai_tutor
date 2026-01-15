@@ -18,6 +18,12 @@ if not SUPABASE_URL or not SUPABASE_ANON_KEY:
 
 sb: Client = create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
 
+
+def get_client() -> Client:
+    """Small helper so other modules can reuse the Supabase client."""
+    return sb
+
+
 # -------------------- Session Persistence --------------------
 SESSION_FILE = pathlib.Path.home() / ".ai_tutor_supabase_session.json"
 
@@ -83,6 +89,14 @@ def sign_out():
 def current_user_id() -> Optional[str]:
     sess = sb.auth.get_session()
     return getattr(getattr(sess, "user", None), "id", None)
+
+
+def current_user_email() -> Optional[str]:
+    """Return the logged-in user's email from Supabase auth (not from profiles)."""
+    sess = sb.auth.get_session()
+    if not sess or not getattr(sess, "user", None):
+        return None
+    return getattr(sess.user, "email", None)
 
 
 # -------------------- Chat Sessions --------------------
@@ -291,4 +305,96 @@ def get_recent_learning_events(limit: int = 5) -> List[Dict[str, Any]]:
         return res.data or []
     except Exception:
         return []
-    #naber akifim....napppasdasdasdasgit ozay
+
+
+# -------------------- ADMIN – UC17 / UC18 helpers --------------------
+
+def get_flagged_learning_events(limit: int = 50) -> List[Dict[str, Any]]:
+    """
+    UC17 – Admin Oversight
+    Fetch learning_events that are 'flagged' or 'reported'.
+    You can implement the exact condition based on your table design.
+    Example assumption:
+      - table 'learning_events' has column 'kind' and we flag with kind IN ('flagged_feedback','user_report')
+    """
+    try:
+        res = (
+            sb.table("learning_events")
+            .select("*")
+            .in_("kind", ["flagged_feedback", "user_report"])
+            .order("created_at", desc=True)
+            .limit(limit)
+            .execute()
+        )
+        return res.data or []
+    except Exception:
+        return []
+
+
+def resolve_flagged_event(event_id: Any, action: str) -> bool:
+    """
+    Mark a flagged event as 'approved' or 'removed'.
+    Requires that 'status' column exists in learning_events (e.g. 'pending', 'approved', 'removed').
+    """
+    if action not in ("approved", "removed"):
+        return False
+
+    try:
+        (
+            sb.table("learning_events")
+            .update({"status": action})
+            .eq("id", event_id)
+            .execute()
+        )
+        return True
+    except Exception:
+        return False
+
+
+# -------------------- Learning content management (UC18) --------------------
+
+def list_lessons() -> List[Dict[str, Any]]:
+    """
+    Return all lessons for Tutor Mode / placement content.
+    Expect a Supabase table 'lessons' with columns:
+      id (uuid), title (text), level (text), content (text), updated_at (timestamp)
+    """
+    try:
+        res = (
+            sb.table("lessons")
+            .select("*")
+            .order("updated_at", desc=True)
+            .execute()
+        )
+        return res.data or []
+    except Exception:
+        return []
+
+
+def upsert_lesson(lesson: Dict[str, Any]) -> bool:
+    """
+    Insert or update a lesson.
+    lesson should contain at least: { "id"?, "title", "level", "content" }
+    """
+    try:
+        (
+            sb.table("lessons")
+            .upsert(lesson)
+            .execute()
+        )
+        return True
+    except Exception:
+        return False
+
+
+def delete_lesson(lesson_id: Any) -> bool:
+    try:
+        (
+            sb.table("lessons")
+            .delete()
+            .eq("id", lesson_id)
+            .execute()
+        )
+        return True
+    except Exception:
+        return False

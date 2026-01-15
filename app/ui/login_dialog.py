@@ -1,44 +1,218 @@
 # app/ui/login_dialog.py
-from PySide6 import QtWidgets
+from PySide6 import QtWidgets, QtGui, QtCore
 from app.services.db_supabase import sign_in, sign_up, load_session_if_any
+
 
 class LoginDialog(QtWidgets.QDialog):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Sign in")
         self.setModal(True)
+        self.setFixedSize(420, 520)
 
+        # Login window icon
+        self.setWindowIcon(QtGui.QIcon("app/resources/images/ai_tutor_icon.png"))
+
+        self._apply_style()
+
+        # -------- Outer layout (center card) --------
+        outer = QtWidgets.QVBoxLayout(self)
+        outer.setContentsMargins(18, 18, 18, 18)
+        outer.setSpacing(0)
+
+        # Card frame
+        self.card = QtWidgets.QFrame()
+        self.card.setObjectName("Card")
+        card_layout = QtWidgets.QVBoxLayout(self.card)
+        card_layout.setContentsMargins(26, 26, 26, 26)
+        card_layout.setSpacing(10)
+
+        outer.addWidget(self.card)
+
+        # -------- Header (logo + title) --------
+        logo = QtWidgets.QLabel()
+        logo.setObjectName("Logo")
+        logo.setAlignment(QtCore.Qt.AlignCenter)
+        logo.setFixedHeight(88)
+        logo.setContentsMargins(0, 6, 0, 6)
+
+        pix = QtGui.QPixmap("app/resources/images/ai_tutor_icon.png")
+        if not pix.isNull():
+            pix = pix.scaled(60, 60, QtCore.Qt.KeepAspectRatio, QtCore.Qt.SmoothTransformation)
+            logo.setPixmap(pix)
+        else:
+            logo.setText("AI Tutor")
+
+        title = QtWidgets.QLabel("Welcome back")
+        title.setObjectName("Title")
+        title.setAlignment(QtCore.Qt.AlignCenter)
+
+        subtitle = QtWidgets.QLabel("Sign in to continue.")
+        subtitle.setObjectName("Subtitle")
+        subtitle.setAlignment(QtCore.Qt.AlignCenter)
+
+        card_layout.addWidget(logo)
+        card_layout.addWidget(title)
+        card_layout.addWidget(subtitle)
+
+        # -------- Form fields --------
         self.email = QtWidgets.QLineEdit()
         self.email.setPlaceholderText("Email")
+        self.email.setObjectName("Input")
+        self.email.setClearButtonEnabled(True)
 
         self.password = QtWidgets.QLineEdit()
         self.password.setPlaceholderText("Password")
+        self.password.setObjectName("Input")
         self.password.setEchoMode(QtWidgets.QLineEdit.Password)
 
+        card_layout.addWidget(self.email)
+        card_layout.addWidget(self.password)
+
+        # -------- Options row --------
+        options_row = QtWidgets.QHBoxLayout()
+        options_row.setContentsMargins(0, 0, 0, 0)
+        options_row.setSpacing(10)
+
         self.signup_chk = QtWidgets.QCheckBox("Create new account")
+        self.signup_chk.setObjectName("Check")
+
+        options_row.addWidget(self.signup_chk)
+        options_row.addStretch(1)
+        card_layout.addLayout(options_row)
+
+        # -------- Status label --------
         self.status = QtWidgets.QLabel("")
+        self.status.setObjectName("Status")
+        self.status.setWordWrap(True)
+        self.status.setAlignment(QtCore.Qt.AlignCenter)
+        card_layout.addWidget(self.status)
 
-        btn = QtWidgets.QPushButton("Continue")
-        btn.clicked.connect(self._continue)
+        # Button spacing
+        card_layout.addSpacing(4)
 
-        layout = QtWidgets.QVBoxLayout(self)
-        layout.addWidget(self.email)
-        layout.addWidget(self.password)
-        layout.addWidget(self.signup_chk)
-        layout.addWidget(btn)
-        layout.addWidget(self.status)
+        # -------- Button --------
+        self.btn = QtWidgets.QPushButton("Continue")
+        self.btn.setObjectName("PrimaryBtn")
+        self.btn.setDefault(True)
+        self.btn.clicked.connect(self._continue)
+        card_layout.addWidget(self.btn)
 
-        # try silent restore
+        # Enter key triggers login
+        self.email.returnPressed.connect(self._continue)
+        self.password.returnPressed.connect(self._continue)
+
+        # Try silent session restore
         if load_session_if_any():
             self.accept()
+
+    def _apply_style(self):
+        self.setStyleSheet("""
+        QDialog {
+            background: #eceff3;
+            color: #111827;
+            font-family: "Segoe UI";
+            font-size: 14px;
+        }
+
+        QFrame#Card {
+            background: #ffffff;
+            border: 1px solid rgba(17,24,39,0.10);
+            border-radius: 18px;
+        }
+
+        QLabel#Title {
+            font-size: 22px;
+            font-weight: 800;
+            color: #111827;
+            margin-top: 6px;
+        }
+
+        QLabel#Subtitle {
+            color: rgba(17,24,39,0.65);
+            margin-bottom: 6px;
+        }
+
+        QLineEdit#Input {
+            background: #ffffff;
+            border: 1px solid rgba(17,24,39,0.18);
+            border-radius: 12px;
+            padding: 10px 12px;
+            min-height: 40px;
+        }
+
+        QLineEdit#Input:focus {
+            border: 1px solid rgba(255,159,28,0.95);
+        }
+
+        QCheckBox#Check {
+            color: rgba(17,24,39,0.85);
+            spacing: 10px;
+        }
+
+        QLabel#Status {
+            color: #b91c1c;
+            min-height: 18px;
+            padding-top: 2px;
+        }
+
+        QPushButton#PrimaryBtn {
+            background: #ff9f1c;
+            color: #1f2937;
+            border: none;
+            border-radius: 12px;
+            padding: 10px;
+            min-height: 42px;
+            font-weight: 800;
+        }
+
+        QPushButton#PrimaryBtn:hover {
+            background: #ff8c00;
+        }
+
+        QPushButton#PrimaryBtn:pressed {
+            background: #e67e00;
+        }
+
+        QPushButton#PrimaryBtn:disabled {
+            background: rgba(255,159,28,0.45);
+            color: rgba(31,41,55,0.55);
+        }
+        """)
 
     def _continue(self):
         e = self.email.text().strip()
         p = self.password.text().strip()
+
+        if not e or not p:
+            self.status.setText("Please enter both email and password.")
+            return
+
+        self.btn.setEnabled(False)
+        self.status.setText("")
+
         try:
             if self.signup_chk.isChecked():
-                sign_up(e, p)  # may require email confirm depending on project settings
-            sign_in(e, p)      # sets session + postgrest auth
+                # Create new account
+                sign_up(e, p)
+                try:
+                    # Try to sign in immediately
+                    sign_in(e, p)
+                    self.accept()
+                except Exception:
+                    # If sign-in fails, user may need to confirm email
+                    self.status.setText("Account created. Please confirm your email, then sign in.")
+                    self.btn.setEnabled(True)
+                return
+
+            # Regular sign in
+            sign_in(e, p)
             self.accept()
+
         except Exception as ex:
             self.status.setText(f"Auth error: {ex}")
+            self.btn.setEnabled(True)
+        finally:
+            # Re-enable button if not already accepted
+            if not self.result():
+                self.btn.setEnabled(True)
