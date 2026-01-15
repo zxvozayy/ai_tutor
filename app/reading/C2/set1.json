@@ -1,1 +1,118 @@
-{}
+{
+  "id": "C2",
+  "level": "C2",
+  "title": "The Illusion of Neutrality in Algorithmic Decision-Making",
+  "passage": "In recent decades, algorithmic decision-making systems have quietly embedded themselves into the infrastructure of modern life. From determining which job applicants are shortlisted to influencing credit approval, medical diagnoses, and even judicial sentencing, algorithms are frequently presented as objective arbiters, immune to human prejudice. This perception, however, rests on a fragile assumption: that mathematical processes are inherently neutral.\n\nAlgorithms do not emerge in a vacuum. They are designed, trained, and refined by humans, using data produced by social systems that are themselves shaped by historical inequalities. As a result, algorithmic outputs often reproduce, amplify, or obscure biases rather than eliminate them. A system trained on employment data from a discriminatory labour market, for instance, may learn to associate competence with demographic traits that reflect past exclusion rather than genuine ability.\n\nThe opacity of many algorithmic models further complicates accountability. Unlike human decision-makers, who can be questioned and challenged, complex machine-learning systems frequently operate as so-called \"black boxes\". Their internal logic may be technically interpretable only by specialists, if at all. This creates a paradox: the more sophisticated an algorithm becomes, the harder it is for those affected by its decisions to understand or contest its conclusions.\n\nProponents argue that algorithms merely mirror the data they are given and that the solution lies in improving datasets rather than questioning automation itself. Critics counter that this framing deflects responsibility. Decisions about which variables to include, how outcomes are defined, and what constitutes acceptable error are normative choices, not technical necessities. Treating them as neutral disguises ethical judgement as engineering.\n\nAt the highest level, the debate is not about whether algorithms can be useful, but about how societies choose to distribute authority. Delegating consequential decisions to machines may increase efficiency, but it also risks eroding democratic oversight. If fairness is reduced to statistical optimisation and accountability is outsourced to code, then the promise of objectivity may ultimately conceal a deeper loss: the capacity to collectively question how decisions ought to be made at all.",
+  "questions": [
+    {
+      "id": "q1",
+      "question": "What central assumption about algorithms does the author challenge?",
+      "options": [
+        "That algorithms are faster than humans",
+        "That algorithms are mathematically complex",
+        "That algorithms are inherently objective",
+        "That algorithms require large datasets"
+      ],
+      "answer_index": 2
+    },
+    {
+      "id": "q2",
+      "question": "Why does the author argue that algorithms can reproduce bias?",
+      "options": [
+        "Because algorithms malfunction frequently",
+        "Because they are trained on socially constructed data",
+        "Because users misunderstand their purpose",
+        "Because they lack sufficient computing power"
+      ],
+      "answer_index": 1
+    },
+    {
+      "id": "q3",
+      "question": "What does the term \"black box\" imply in the context of the passage?",
+      "options": [
+        "Algorithms are intentionally secret",
+        "Algorithms cannot be modified",
+        "Algorithmic reasoning is difficult to scrutinise",
+        "Algorithms are controlled only by governments"
+      ],
+      "answer_index": 2
+    },
+    {
+      "id": "q4",
+      "question": "What paradox does the author identify regarding advanced algorithms?",
+      "options": [
+        "They become cheaper but less accurate",
+        "They improve efficiency but reduce transparency",
+        "They eliminate bias but increase discrimination",
+        "They simplify decisions but require more data"
+      ],
+      "answer_index": 1
+    },
+    {
+      "id": "q5",
+      "question": "How does the author view the claim that better data alone can solve algorithmic bias?",
+      "options": [
+        "As a complete and sufficient solution",
+        "As a technically valid but ethically irrelevant point",
+        "As an attempt to avoid moral responsibility",
+        "As a misunderstanding of machine learning"
+      ],
+      "answer_index": 2
+    },
+    {
+      "id": "q6",
+      "question": "Why does the author describe certain design choices as 'normative'?",
+      "options": [
+        "Because they follow international standards",
+        "Because they are dictated by law",
+        "Because they involve value judgements",
+        "Because they are mathematically optimal"
+      ],
+      "answer_index": 2
+    },
+    {
+      "id": "q7",
+      "question": "What broader concern does the author raise about delegating decisions to algorithms?",
+      "options": [
+        "The economic cost of automation",
+        "The technical limitations of software",
+        "The potential loss of democratic control",
+        "The speed of technological change"
+      ],
+      "answer_index": 2
+    },
+    {
+      "id": "q8",
+      "question": "What is implied by the phrase \"fairness is reduced to statistical optimisation\"?",
+      "options": [
+        "Fairness becomes easier to measure",
+        "Ethical considerations are simplified into numerical targets",
+        "Statistics guarantee equal outcomes",
+        "Optimisation removes human error"
+      ],
+      "answer_index": 1
+    },
+    {
+      "id": "q9",
+      "question": "Which statement best summarises the author’s position?",
+      "options": [
+        "Algorithms should replace human decision-making entirely",
+        "Algorithms are dangerous and should be banned",
+        "Algorithms are useful but must remain subject to ethical scrutiny",
+        "Algorithms are neutral tools that depend only on data quality"
+      ],
+      "answer_index": 2
+    },
+    {
+      "id": "q10",
+      "question": "What is the primary purpose of the final paragraph?",
+      "options": [
+        "To predict future technological developments",
+        "To propose a technical solution",
+        "To reframe the debate in political and ethical terms",
+        "To summarise previous research findings"
+      ],
+      "answer_index": 2
+    }
+  ]
+}

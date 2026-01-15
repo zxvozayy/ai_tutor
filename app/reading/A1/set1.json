@@ -1,1 +1,57 @@
-{}
+
+{
+  "id": "A1",
+  "level": "A1",
+  "title": "Lunchtime Yoga Class",
+  "passage": "Come and join our lunchtime yoga class with experienced yoga teacher Divya Bridge!\n\nWhen? Every Tuesday at 1.30 p.m.\n\nWhere? Meeting Room 7\n\nHow much? £10 for four 30-minute classes.\n\nWhat to bring? Comfortable clothes. Divya will provide the yoga mats.\n\nHow to join? Write to Sam at Sam.Holden@example.com\n\nWe can only take a maximum of 20 in the room, so book now!",
+  "questions": [
+    {
+      "id": "q1",
+      "question": "Who is the yoga teacher?",
+      "options": ["Sam Holden", "Divya Bridge", "A student", "A doctor"],
+      "answer_index": 1
+    },
+    {
+      "id": "q2",
+      "question": "When is the yoga class?",
+      "options": ["Every Monday", "Every Tuesday", "Every Friday", "Every weekend"],
+      "answer_index": 1
+    },
+    {
+      "id": "q3",
+      "question": "What time does the class start?",
+      "options": ["12.30 p.m.", "1.00 p.m.", "1.30 p.m.", "2.30 p.m."],
+      "answer_index": 2
+    },
+    {
+      "id": "q4",
+      "question": "Where is the yoga class?",
+      "options": ["Meeting Room 5", "Meeting Room 6", "Meeting Room 7", "Meeting Room 8"],
+      "answer_index": 2
+    },
+    {
+      "id": "q5",
+      "question": "How much does it cost for four classes?",
+      "options": ["£5", "£10", "£20", "£30"],
+      "answer_index": 1
+    },
+    {
+      "id": "q6",
+      "question": "What should you bring to the class?",
+      "options": ["Yoga mat", "Comfortable clothes", "Food", "Water bottle"],
+      "answer_index": 1
+    },
+    {
+      "id": "q7",
+      "question": "Who provides the yoga mats?",
+      "options": ["Sam", "The students", "Divya", "The gym"],
+      "answer_index": 2
+    },
+    {
+      "id": "q8",
+      "question": "How many people can join the class?",
+      "options": ["10", "15", "20", "30"],
+      "answer_index": 2
+    }
+  ]
+}

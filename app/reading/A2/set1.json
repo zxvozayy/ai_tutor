@@ -1,1 +1,71 @@
-{}
+{
+  "id": "A2",
+  "level": "A2",
+  "title": "Hand Luggage on the Plane",
+  "passage": "What can I take on the plane as hand luggage?\n\nPlease note that passengers can only take ONE suitcase onto the plane. It must be no bigger than 55cm x 22cm x 35cm and weigh no more than 10kg.\n\nYou can also take one small laptop bag or handbag that can fit under the seat in front of you. If you have two bags, their total weight cannot be more than 10kg. If your bag is too big or too heavy, you will not be allowed to take it onto the plane. Staff will put it in the hold for you and you will have to pay extra.\n\nPlease make sure mobile phones and other devices are fully charged so that security staff can check them.\n\nLiquids in bottles bigger than 100ml are allowed on board if you buy them in the airport shops after you've passed security.\n\nWe hope you enjoy your flight!",
+  "questions": [
+    {
+      "id": "q1",
+      "question": "How many suitcases can a passenger take onto the plane?",
+      "options": ["One", "Two", "Three", "As many as they want"],
+      "answer_index": 0
+    },
+    {
+      "id": "q2",
+      "question": "What is the maximum weight of the suitcase?",
+      "options": ["8kg", "10kg", "12kg", "15kg"],
+      "answer_index": 1
+    },
+    {
+      "id": "q3",
+      "question": "Which extra item can you take on the plane?",
+      "options": ["A large backpack", "A second suitcase", "A small laptop bag", "A shopping bag"],
+      "answer_index": 2
+    },
+    {
+      "id": "q4",
+      "question": "Where must the laptop bag or handbag fit?",
+      "options": ["In the overhead locker", "Under the seat in front of you", "In the hold", "Next to the pilot"],
+      "answer_index": 1
+    },
+    {
+      "id": "q5",
+      "question": "What happens if your bag is too big or too heavy?",
+      "options": [
+        "You cannot fly",
+        "You must leave it at the airport",
+        "Staff put it in the hold and you pay extra",
+        "You carry it yourself"
+      ],
+      "answer_index": 2
+    },
+    {
+      "id": "q6",
+      "question": "Why must mobile phones be fully charged?",
+      "options": [
+        "To use them during the flight",
+        "So security staff can check them",
+        "To call family",
+        "To listen to music"
+      ],
+      "answer_index": 1
+    },
+    {
+      "id": "q7",
+      "question": "When are liquids over 100ml allowed on board?",
+      "options": [
+        "Before security",
+        "If they are in your suitcase",
+        "If you buy them after security",
+        "They are never allowed"
+      ],
+      "answer_index": 2
+    },
+    {
+      "id": "q8",
+      "question": "What is the total allowed weight if you have two bags?",
+      "options": ["8kg", "10kg", "15kg", "20kg"],
+      "answer_index": 1
+    }
+  ]
+}

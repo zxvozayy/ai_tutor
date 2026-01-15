@@ -1,1 +1,118 @@
-{}
+{
+  "id": "B2",
+  "level": "B2",
+  "title": "Life at the Big House",
+  "passage": "Sam squinted against the sun at the distant dust trail raked up by the car on its way up to the Big House. The horses kicked and flicked their tails at flies, not caring about their owner's first visit in ten months. Sam waited. Mr Carter didn't come out here unless he had to, which was just fine by Sam. The more he kept out of his boss's way, the longer he'd have a job.\n\nCarter came by later while Sam was chopping wood. Carter lifted his hat as if he were waiting for an appointment with the town priest, and then removed it completely as if he were talking to his mother. He pulled out a pile of paper from his back pocket and held it out.\n\n'Don't pick up your mail often, do you?'\n\nSam took it without a glance and dropped the envelopes onto the bench.\n\n'Never,' he replied and waited for Carter to say why he was here. The fact it was Carter's house was no explanation and they both knew it. Carter twisted his hat round and round, licking his lips and clearing his throat.\n\n'Nice work fixing those fences,' he said finally.\n\n'I'll be back to the beginning soon,' Sam said. It wasn't a complaint. A fence that took a year to repair meant another year's work to the man who did it well.\n\n'Don't you ever want to take a holiday?'\n\n'And go where?' A holiday meant being back out in the real world, a place even people like Carter travelled to escape from. Sam's escape was his reality and he wasn't going back.\n\nMr Carter wiped the sweat from the back of his neck. The damp patches on his shirt drew together like shapes in an atlas. His skin was already turning ruddy in the June sun. Otherwise he had the indoor tan of a man that made money while other people did the work.\n\n'I've brought my son with me on this trip. He's had some trouble at school.' Mr Carter's eyes flicked up, blinked rapidly and then shifted back to the hat occupying his hands. 'Not much trouble out here for a young boy.' He attempted a laugh but it came out like a dog's bark.\n\nThe two men looked towards the northern end of the property. It stretched as far as the eye could see. Even the fences were barely visible from where they stood. However bored and rebellious a teenage boy might get, it wasn't possible to escape on foot. Sam looked at the biggest of the horses, kicking at the ground with its heavy hooves. Could the boy ride? he wondered. There was a whole load of trouble a good rider could get into out here, miles away from anyone. But maybe there was even more trouble for someone who knew nothing about horses and wanted to get away from his father.",
+  "questions": [
+    {
+      "id": "q1",
+      "question": "What does Sam’s reaction to Carter’s visit suggest about their relationship?",
+      "options": [
+        "Sam respects Carter as a close friend",
+        "Sam feels uneasy but dependent on Carter",
+        "Sam is eager to impress Carter",
+        "Sam resents Carter and plans to leave"
+      ],
+      "answer_index": 1
+    },
+    {
+      "id": "q2",
+      "question": "Why does Sam not complain about repairing the fences again?",
+      "options": [
+        "He enjoys repairing the same fences repeatedly",
+        "He believes the fences are poorly designed",
+        "He sees long repairs as job security",
+        "He wants to finish the work quickly"
+      ],
+      "answer_index": 2
+    },
+    {
+      "id": "q3",
+      "question": "What is implied by the description of Carter’s appearance in the sun?",
+      "options": [
+        "He is physically stronger than Sam",
+        "He is uncomfortable with outdoor labour",
+        "He spends most of his time travelling",
+        "He enjoys working in harsh conditions"
+      ],
+      "answer_index": 1
+    },
+    {
+      "id": "q4",
+      "question": "What does Sam mean when he says that his 'escape was his reality'?",
+      "options": [
+        "He dreams of leaving the property one day",
+        "He prefers isolation to the outside world",
+        "He feels trapped by his current life",
+        "He wants to return to the city"
+      ],
+      "answer_index": 1
+    },
+    {
+      "id": "q5",
+      "question": "Why does Carter struggle to explain the reason for his visit?",
+      "options": [
+        "He is ashamed of his son’s behaviour",
+        "He has forgotten why he came",
+        "He dislikes speaking to Sam",
+        "He is angry about the fences"
+      ],
+      "answer_index": 0
+    },
+    {
+      "id": "q6",
+      "question": "What does the description of the property suggest about the son’s situation?",
+      "options": [
+        "The boy will easily escape if he tries",
+        "The property offers complete safety",
+        "Isolation could increase potential problems",
+        "Life there will immediately solve his issues"
+      ],
+      "answer_index": 2
+    },
+    {
+      "id": "q7",
+      "question": "What concern crosses Sam’s mind about the boy?",
+      "options": [
+        "Whether the boy can repair fences",
+        "Whether the boy will respect his father",
+        "Whether the boy can ride a horse safely",
+        "Whether the boy will enjoy farm life"
+      ],
+      "answer_index": 2
+    },
+    {
+      "id": "q8",
+      "question": "What does the final paragraph mainly highlight?",
+      "options": [
+        "The beauty of the landscape",
+        "The boredom of rural life",
+        "The potential danger of isolation",
+        "The strength of the horses"
+      ],
+      "answer_index": 2
+    },
+    {
+      "id": "q9",
+      "question": "Which theme is most strongly developed in the text?",
+      "options": [
+        "Freedom versus confinement",
+        "Tradition versus progress",
+        "Wealth versus poverty",
+        "Youth versus old age"
+      ],
+      "answer_index": 0
+    },
+    {
+      "id": "q10",
+      "question": "How would you best describe the overall tone of the passage?",
+      "options": [
+        "Light-hearted and humorous",
+        "Tense and reflective",
+        "Optimistic and inspiring",
+        "Fast-paced and dramatic"
+      ],
+      "answer_index": 1
+    }
+  ]
+}

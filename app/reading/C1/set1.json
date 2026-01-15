@@ -1,1 +1,118 @@
-{}
+{
+  "id": "C1",
+  "level": "C1",
+  "title": "The Rise and Fall of the Banana Monoculture",
+  "passage": "In the 1950s, Central American commercial banana growers were facing the death of their most lucrative product, the Gros Michel banana, known as Big Mike. And now it’s happening again to Big Mike’s successor – the Cavendish.\n\nWith its easily transported, thick-skinned and sweet-tasting fruit, the Gros Michel banana plant dominated the plantations of Central America. United Fruit, the main grower and exporter in South America at the time, mass-produced its bananas in the most efficient way possible: it cloned shoots from the stems of plants instead of growing plants from seeds, and cultivated them in densely packed fields.\n\nUnfortunately, these conditions are also perfect for the spread of the fungus Fusarium oxysporum f. sp. cubense, which attacks the plant’s roots and prevents it from transporting water to the stem and leaves. The TR-1 strain of the fungus was resistant to crop sprays and travelled around on boots or the tyres of trucks, slowly infecting plantations across the region. In an attempt to escape the fungus, farmers abandoned infected fields, flooded them and then replanted crops somewhere else, often cutting down rainforest to do so.\n\nTheir efforts failed. So, instead, they searched for a variety of banana that the fungus didn’t affect. They found the Cavendish, as it was called, in the greenhouse of a British duke. It wasn’t as well suited to shipping as the Gros Michel, but its bananas tasted good enough to keep consumers happy. Most importantly, TR-1 didn’t seem to affect it. In a few years, United Fruit had saved itself from bankruptcy by filling its plantations with thousands of the new plants, copying the same monoculture growing conditions Gros Michel had thrived in.\n\nWhile the operation was a huge success for the Latin American industry, the Cavendish banana itself is far from safe. In 2014, South East Asia, another major banana producer, exported four million tons of Cavendish bananas. But, in 2015, its exports had dropped by 46 per cent thanks to a combination of another strain of the fungus, TR-4, and bad weather.\n\nGrowing practices in South East Asia haven’t helped matters. Growers can’t always afford the expensive lab-based methods to clone plants from shoots without spreading the disease. Also, they often aren’t strict enough about cleaning farm equipment and quarantining infected fields. As a result, the fungus has spread to Australia, the Middle East and Mozambique – and Latin America, heavily dependent on its monoculture Cavendish crops, could easily be next.\n\nRacing against the inevitable, scientists are working on solving the problem by genetically modifying the Cavendish with genes from TR-4-resistant banana species. Researchers at the Queensland University of Technology have successfully grown two kinds of modified plant which have remained resistant for three years so far. But some experts think this is just a sophisticated version of the same temporary solution the original Cavendish provided. If the new bananas are planted in the same monocultures as the Cavendish and the Gros Michel before it, the risk is that another strain of the disease may rise up to threaten the modified plants too.",
+  "questions": [
+    {
+      "id": "q1",
+      "question": "Why did United Fruit originally choose to clone banana plants rather than grow them from seeds?",
+      "options": [
+        "To improve the taste of the bananas",
+        "To reduce the risk of fungal infection",
+        "To maximise efficiency and uniformity",
+        "To adapt bananas to different climates"
+      ],
+      "answer_index": 2
+    },
+    {
+      "id": "q2",
+      "question": "What made the Gros Michel banana particularly vulnerable to the TR-1 fungus?",
+      "options": [
+        "Its thin skin",
+        "Its genetic diversity",
+        "The way it was cultivated",
+        "Its poor resistance to chemicals"
+      ],
+      "answer_index": 2
+    },
+    {
+      "id": "q3",
+      "question": "What environmental consequence resulted from farmers attempting to escape the fungus?",
+      "options": [
+        "Soil erosion due to flooding",
+        "Increased use of pesticides",
+        "Deforestation of rainforest areas",
+        "Loss of banana exports"
+      ],
+      "answer_index": 2
+    },
+    {
+      "id": "q4",
+      "question": "Why was the Cavendish banana initially considered a successful replacement?",
+      "options": [
+        "It was cheaper to transport",
+        "It was unaffected by TR-1 and acceptable to consumers",
+        "It grew faster than Gros Michel",
+        "It required less land to cultivate"
+      ],
+      "answer_index": 1
+    },
+    {
+      "id": "q5",
+      "question": "What mistake did banana producers repeat with the Cavendish variety?",
+      "options": [
+        "They ignored consumer preferences",
+        "They relied on the same monoculture system",
+        "They stopped exporting bananas",
+        "They avoided scientific advice"
+      ],
+      "answer_index": 1
+    },
+    {
+      "id": "q6",
+      "question": "What does the drop in South East Asian exports suggest about the Cavendish banana?",
+      "options": [
+        "It is more resilient than expected",
+        "It is only affected by weather conditions",
+        "It is vulnerable to multiple external threats",
+        "It is no longer profitable to grow"
+      ],
+      "answer_index": 2
+    },
+    {
+      "id": "q7",
+      "question": "Why have growing practices in South East Asia contributed to the spread of TR-4?",
+      "options": [
+        "Growers deliberately ignore safety rules",
+        "Modern technology is unavailable in the region",
+        "Disease-control measures are inconsistently applied",
+        "Bananas are grown too slowly"
+      ],
+      "answer_index": 2
+    },
+    {
+      "id": "q8",
+      "question": "What concern do some experts have about genetically modified Cavendish bananas?",
+      "options": [
+        "Consumers may refuse to buy them",
+        "They may damage the environment",
+        "They could encourage even stronger disease strains",
+        "They are too expensive to produce"
+      ],
+      "answer_index": 2
+    },
+    {
+      "id": "q9",
+      "question": "What does the phrase 'racing against the inevitable' imply about scientists’ efforts?",
+      "options": [
+        "They are confident of a permanent solution",
+        "They believe the problem has already been solved",
+        "They fear time is limited before further damage occurs",
+        "They are uncertain whether bananas will remain popular"
+      ],
+      "answer_index": 2
+    },
+    {
+      "id": "q10",
+      "question": "Which broader lesson does the passage suggest about agricultural practices?",
+      "options": [
+        "Technological solutions always solve natural problems",
+        "Monocultures increase long-term vulnerability",
+        "Global trade is harmful to local farmers",
+        "Genetic modification should be avoided entirely"
+      ],
+      "answer_index": 1
+    }
+  ]
+}
