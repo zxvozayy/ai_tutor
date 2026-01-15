@@ -1,5 +1,5 @@
 # app/engines/gemini_engine.py
-# HYBRID VERSION: Uses Groq if Gemini fails!
+# MERGED VERSION: Your original + teammate's check_grammar + Groq fallback
 
 import os
 import json
@@ -17,13 +17,10 @@ from app.services.db_supabase import add_learning_event, get_recent_learning_eve
 
 class GeminiEngine:
     """
-    Hybrid Gemini/Groq client with automatic fallback.
-
-    Priority:
-    1. Try Gemini (if available)
-    2. Fall back to Groq (if Gemini fails)
-
-    This solves your 429 problem permanently!
+    Hybrid Gemini/Groq engine with:
+    1. ask() - Main tutor conversation with learning memory (YOUR ORIGINAL)
+    2. check_grammar() - Grammar correction JSON (YOUR TEAMMATE'S NEW)
+    3. Automatic fallback to Groq when Gemini fails
     """
 
     GRAMMAR_CATEGORIES = [
@@ -54,15 +51,15 @@ class GeminiEngine:
         # Gemini setup
         if self.gemini_key:
             model = os.getenv("GEMINI_MODEL", "gemini-2.0-flash-exp")
-            self.gemini_endpoint = (
+            self.endpoint = (
                 f"https://generativelanguage.googleapis.com/v1beta/models/"
                 f"{model}:generateContent?key={self.gemini_key}"
             )
             self.use_gemini = True
-            print("✅ Gemini initialized (will try first)")
+            print("✅ Gemini initialized")
         else:
             self.use_gemini = False
-            print("⚠️  No Gemini key found")
+            print("⚠️  No Gemini key")
 
         # Groq setup
         if self.groq_key:
@@ -72,19 +69,26 @@ class GeminiEngine:
             print("✅ Groq initialized (fallback)")
         else:
             self.use_groq = False
-            print("⚠️  No Groq key found")
+            print("⚠️  No Groq key")
 
-        # Rate limiting
+        # Rate limiting & failure tracking
         self.last_request_time = 0
         self.min_interval = 2.0
         self.gemini_failed_count = 0
         self.max_failures_before_switch = 2
 
+    # ========================================================================
+    # 1. YOUR ORIGINAL: ask() - Main tutor conversation with learning memory
+    # ========================================================================
     def ask(self, text: str, session_id: int | None = None) -> str:
         """
-        Main entry point - tries Gemini first, falls back to Groq.
+        Main tutor conversation entry point.
+        - Builds learning context from past events (FR17)
+        - Gets AI response (Gemini or Groq)
+        - Analyzes grammar categories
+        - Logs learning event (FR16)
         """
-        # Build context
+        # Build learning context
         context = self._build_learning_context()
         prompt_text = context + "\n\nCurrent user message:\n" + text
 
@@ -105,19 +109,18 @@ class GeminiEngine:
                 # Success - reset failure count
                 self.gemini_failed_count = 0
 
-        # Use Groq if Gemini is unavailable or has failed too much
+        # Use Groq if Gemini unavailable or failed
         elif self.use_groq:
             reply = self._try_groq(prompt_text)
-
         else:
-            reply = "[ERROR: No AI service available. Please configure GEMINI_API_KEY or GROQ_API_KEY]"
+            reply = "[ERROR: No AI service available]"
 
-        # Grammar analysis (only if not an error)
+        # Grammar category analysis (only if not an error)
         grammar_info = {}
         if not reply.startswith("[") and not reply.startswith("ERROR"):
             grammar_info = self._analyse_grammar(text, reply)
 
-        # Log learning event
+        # Log learning event (FR16)
         self._log_learning_event(
             user_input=text,
             reply_text=reply,
@@ -127,66 +130,156 @@ class GeminiEngine:
 
         return reply
 
-    def _try_gemini(self, prompt: str) -> str:
-        """Try to get response from Gemini."""
+    # ========================================================================
+    # 2. YOUR TEAMMATE'S NEW: check_grammar() - Grammar correction JSON
+    # ========================================================================
+    def check_grammar(self, text: str) -> dict:
+        """
+        Grammar correction engine (NEW from your teammate).
+
+        Returns:
+        {
+          "original": "I goed to school yesterday.",
+          "corrected": "I went to school yesterday.",
+          "errors": [
+            {
+              "original": "goed",
+              "suggestion": "went",
+              "start": 2,
+              "end": 6
+            }
+          ]
+        }
+        """
+        prompt = f"""
+You are a grammar correction engine for English learners.
+Return ONLY JSON.
+
+TASK:
+- Analyze the user sentence.
+- Correct grammar/spelling mistakes.
+- Ignore capitalization and whitespace issues. Only REAL mistakes matter.
+- Return a JSON with:
+  "original": string (the original sentence),
+  "corrected": string (the fully corrected sentence),
+  "errors": a list of objects with:
+      "original": wrong word/phrase,
+      "suggestion": corrected form,
+      "start": index in original text,
+      "end": index in original text.
+
+NO explanations. NO text outside JSON.
+User sentence:
+{text}
+        """.strip()
+
         body = {"contents": [{"parts": [{"text": prompt}]}]}
 
+        # Try Gemini first, then Groq
         try:
-            # Rate limiting
+            if self.use_gemini and self.gemini_failed_count < self.max_failures_before_switch:
+                r = requests.post(self.endpoint, json=body, timeout=60)
+            elif self.use_groq:
+                # Groq version
+                headers = {
+                    "Authorization": f"Bearer {self.groq_key}",
+                    "Content-Type": "application/json"
+                }
+                groq_body = {
+                    "model": self.groq_model,
+                    "messages": [{"role": "user", "content": prompt}],
+                    "temperature": 0.3
+                }
+                r = requests.post(self.groq_endpoint, json=groq_body, headers=headers, timeout=30)
+            else:
+                return {
+                    "original": text,
+                    "corrected": text,
+                    "errors": [],
+                    "error": "No AI service available"
+                }
+
+            if r.status_code != 200:
+                return {
+                    "original": text,
+                    "corrected": text,
+                    "errors": [],
+                    "error": f"Error {r.status_code}: {r.text[:180]}",
+                }
+
+            # Parse response
+            data = r.json()
+            if self.use_groq and "choices" in data:
+                raw = data["choices"][0]["message"]["content"]
+            else:
+                raw = data["candidates"][0]["content"]["parts"][0]["text"]
+
+            # Clean JSON fences
+            raw = self._strip_code_fence(raw)
+
+            result = json.loads(raw)
+
+            # Validate structure
+            if "errors" not in result or not isinstance(result["errors"], list):
+                result["errors"] = []
+            result.setdefault("original", text)
+            result.setdefault("corrected", text)
+
+            return result
+
+        except Exception as e:
+            return {
+                "original": text,
+                "corrected": text,
+                "errors": [],
+                "error": f"Parse error: {e}",
+            }
+
+    # ========================================================================
+    # INTERNAL HELPERS (from your original code)
+    # ========================================================================
+
+    def _try_gemini(self, prompt: str) -> str:
+        """Try Gemini API."""
+        body = {"contents": [{"parts": [{"text": prompt}]}]}
+        try:
             self._rate_limit()
-
-            r = requests.post(self.gemini_endpoint, json=body, timeout=60)
-
+            r = requests.post(self.endpoint, json=body, timeout=60)
             if r.status_code == 200:
                 data = r.json()
                 return data["candidates"][0]["content"]["parts"][0]["text"]
             elif r.status_code == 429:
-                return f"[Gemini error 429: Quota exceeded. Falling back to Groq...]"
+                return "[Gemini error 429: Quota exceeded]"
             else:
                 return f"[Gemini error {r.status_code}]"
-
         except requests.Timeout:
             return "[Gemini error: timeout]"
         except Exception as e:
             return f"[Gemini error: {e}]"
 
     def _try_groq(self, prompt: str) -> str:
-        """Try to get response from Groq."""
+        """Try Groq API."""
         headers = {
             "Authorization": f"Bearer {self.groq_key}",
             "Content-Type": "application/json"
         }
-
         body = {
             "model": self.groq_model,
             "messages": [
-                {
-                    "role": "system",
-                    "content": "You are a helpful AI language tutor. Provide clear, encouraging responses."
-                },
-                {
-                    "role": "user",
-                    "content": prompt
-                }
+                {"role": "system", "content": "You are a helpful AI language tutor."},
+                {"role": "user", "content": prompt}
             ],
             "temperature": 0.7,
             "max_tokens": 2048
         }
-
         try:
-            # Rate limiting
             self._rate_limit()
-
             r = requests.post(self.groq_endpoint, json=body, headers=headers, timeout=30)
-
             if r.status_code == 200:
                 data = r.json()
                 return data["choices"][0]["message"]["content"]
             else:
-                return f"[Groq error {r.status_code}: {r.text[:100]}]"
-
-        except requests.Timeout:
-            return "[Groq error: timeout]"
+                return f"[Groq error {r.status_code}]"
         except Exception as e:
             return f"[Groq error: {e}]"
 
@@ -198,7 +291,7 @@ class GeminiEngine:
         self.last_request_time = time.time()
 
     def _build_learning_context(self) -> str:
-        """FR17: Use past learning points."""
+        """FR17: Build context from past learning events."""
         events = get_recent_learning_events(limit=5)
         if not events:
             return (
@@ -217,24 +310,22 @@ class GeminiEngine:
         if not sentences:
             return (
                 "You are an AI language tutor. "
-                "Explain grammar and vocabulary clearly, give examples, "
-                "and gently review previous topics the user struggled with."
+                "Explain grammar and vocabulary clearly."
             )
 
         bullet_lines = "\n".join(f"- {s}" for s in sentences)
-
-        context = (
-            "You are an AI language tutor having an ongoing relationship with the learner.\n"
+        return (
+            "You are an AI language tutor.\n"
             "Previously, the user produced sentences like:\n"
             f"{bullet_lines}\n\n"
-            "When answering now:\n"
-            "- Re-use similar vocabulary or grammar structures occasionally.\n"
+            "When answering:\n"
+            "- Re-use similar vocabulary occasionally for retrieval practice.\n"
             "- Briefly remind important rules if related.\n"
-            "- Keep tone supportive and help build long-term memory."
+            "- Keep tone supportive."
         )
-        return context
 
     def _normalise_categories(self, cats) -> list[str]:
+        """Normalize grammar categories."""
         if not cats:
             return []
         if isinstance(cats, str):
@@ -249,7 +340,7 @@ class GeminiEngine:
         return list(dict.fromkeys(out))
 
     def _strip_code_fence(self, text: str) -> str:
-        """Strip ```json fences if present."""
+        """Strip ```json fences."""
         s = text.strip()
         if not s.startswith("```"):
             return s
@@ -261,17 +352,20 @@ class GeminiEngine:
         return "\n".join(lines).strip()
 
     def _analyse_grammar(self, user_input: str, reply_text: str) -> dict:
-        """Grammar category detection."""
+        """
+        Grammar category detection (YOUR ORIGINAL).
+        Returns grammar_categories and short_comment.
+        """
         prompt = (
             "You are an English teacher.\n"
             f"Analyse: \"{user_input}\"\n\n"
-            "Return ONLY JSON with:\n"
+            "Return ONLY JSON:\n"
             f'  "grammar_categories": array from {self.GRAMMAR_CATEGORIES}\n'
             '  "short_comment": max 80 chars\n\n'
             'Example: {"grammar_categories": ["verb_tense"], "short_comment": "Past tense needs review."}'
         )
 
-        # Try with current engine (Gemini or Groq)
+        # Use current engine
         if self.use_gemini and self.gemini_failed_count < self.max_failures_before_switch:
             response = self._try_gemini(prompt)
         elif self.use_groq:
@@ -301,7 +395,7 @@ class GeminiEngine:
             session_id: int | None = None,
             extra: dict | None = None,
     ) -> None:
-        """FR16: Save learning info."""
+        """FR16: Log learning event to Supabase."""
         payload: dict = {
             "last_input": user_input[:200],
             "last_reply": reply_text[:400],
@@ -318,4 +412,4 @@ class GeminiEngine:
                 session_id=session_id,
             )
         except Exception:
-            pass
+            pass  # Don't crash if logging fails

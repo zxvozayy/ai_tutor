@@ -1,4 +1,7 @@
-import sys, re, threading
+import sys
+import re
+import threading
+import urllib.parse
 from collections import Counter
 
 from PySide6 import QtWidgets, QtCore, QtGui
@@ -32,8 +35,8 @@ from app.engines.cloud_stt_azure import AzureSTTEngine as STTEngine
 try:
     from app.engines.pron_eval import flag_tricky_words
 except Exception:
-    def flag_tricky_words(*args, **kwargs): return []
-
+    def flag_tricky_words(*args, **kwargs):
+        return []
 
 LANG_TAGS = ("[en-US]", "[tr-TR]", "[en-GB]", "[tr]", "[en]")
 
@@ -65,58 +68,50 @@ def run_placement_test_if_needed(parent_widget: QtWidgets.QWidget) -> None:
             parent_widget,
             "Level set",
             f"Your level is set to <b>{level}</b>.\n"
-            "We’ll adapt practice to this level.",
+            "We'll adapt practice to this level.",
         )
 
 
-class MainWindow(QtWidgets.QWidget):
+class MainWindow(QtWidgets.QMainWindow):
     bot_text_signal = QtCore.Signal(str)
     stt_text_signal = QtCore.Signal(str, bool, list)
     vocab_explained_signal = QtCore.Signal(str, str)  # word, explanation
-    def _on_topic_changed(self, index: int):
-        """Topic değiştiğinde: free chat mi, senaryo mu, karar ver."""
-        topic_key = self.topic_combo.itemData(index, role=QtCore.Qt.UserRole)
-
-        # Free Chat seçildiyse
-        if topic_key == "__free__":
-            self.current_topic_key = None
-            self.current_topic_prompt = None
-            return
-
-        # Gerçek bir topic seçildi
-        self.current_topic_key = topic_key
-
-        # (İSTEĞE BAĞLI) Yeni chat açmak istiyorsan:
-        # New butonunun bağlı olduğu fonksiyonu buraya yaz
-        # Örnek: self.on_new_chat_clicked()
-        # self.on_new_chat_clicked()
-
-        # Senaryoya ait prompt + açılış mesajı için helper
-        self._start_topic_conversation(topic_key)
 
     def __init__(self, engine, parent=None):
         super().__init__(parent)
         self.engine = engine
         self.user_id = current_user_id()
 
-        self.setWindowTitle("AI Tutor — Chat + Voice (Azure STT)")
+        self.setWindowTitle("AI Tutor – Chat + Voice (Azure + Gemini)")
         self.resize(1120, 680)
 
+        # ---- Global stylesheet ----
         self.setStyleSheet("""
-            QWidget { background-color: #3c3e30; color: #ecf0f1; }
+            QWidget {
+                background-color: #3c3e30;
+                color: #eceff1;
+            }
             QLineEdit {
-                background-color: #34495e; color: #ecf0f1;
-                border: 1px solid #3c3e30; border-radius: 4px; padding: 6px 8px;
+                background-color: #34495e;
+                color: #ecf0f1;
+                border: 1px solid #3c3e30;
+                border-radius: 4px;
+                padding: 6px 8px;
             }
             QPushButton {
-                background-color: #2d3436; border: 1px solid #7f8c8d;
-                border-radius: 6px; padding: 6px 10px;
+                background-color: #2d4369;
+                border: 1px solid #3c3e30;
+                padding: 6px 10px;
             }
-            QPushButton:checked { background-color: #6c5ce7; }
-            QPushButton:hover { border-color: #bdc3c7; }
+            QPushButton:checked {
+                background-color: #6c5ce7;
+            }
             QComboBox {
-                background-color: #2d3436; color:#ecf0f1; border:1px solid #7f8c8d;
-                border-radius:6px; padding:4px 8px;
+                background-color: #2d3436;
+                color: #ecf0f1;
+                border: 1px solid #7f8c8d;
+                border-radius: 6px;
+                padding: 4px 8px;
             }
             QListWidget {
                 background-color: #2b2b2b;
@@ -134,8 +129,15 @@ class MainWindow(QtWidgets.QWidget):
             }
         """)
 
+        # =========================================================
+        #  CENTRAL WIDGET
+        # =========================================================
+        central = QtWidgets.QWidget(self)
+        self.setCentralWidget(central)
+        root = QtWidgets.QVBoxLayout(central)
+        root.setContentsMargins(0, 0, 0, 0)
+
         # ---------------- TOPIC CATEGORIES + PERSONA ----------------
-        # (from your friend’s main_window; merged here)
         self.topic_prompts = {
             "Daily Life": {
                 "At the Restaurant": "You are a waiter talking to a customer in a restaurant.",
@@ -158,127 +160,10 @@ class MainWindow(QtWidgets.QWidget):
             }
         }
 
-        # Model for hierarchical topic selector
-        # ---------------- TOPIC DROPDOWN (Kategorili) ----------------
-        self.topic_combo = QtWidgets.QComboBox()
-        self.topic_combo.setEditable(False)          # yazılabilir olmasın
-        self.topic_combo.setMinimumWidth(220)
-
-        # Persona ile aynı stil olsun istiyorsan:
-        # (persona_combo zaten tanımlıysa)
-        # self.topic_combo.setStyleSheet(self.persona_combo.styleSheet())
-
-        # Hiyerarşik model
-        self.topic_model = QtGui.QStandardItemModel(self.topic_combo)
-        self.topic_combo.setModel(self.topic_model)
-
-        icons = {"Daily Life": "🏠", "Travel": "✈️", "Professional": "💼"}
-
-        # 0. satır: Free Chat
-        free_item = QtGui.QStandardItem("🌐 Free Chat")
-        free_item.setData("Free Chat", QtCore.Qt.UserRole)
-        free_item.setEditable(False)
-        self.topic_model.appendRow(free_item)
-
-        # Kategoriler + alt topicler
-        for category, topics in self.topic_prompts.items():
-            # kategori satırı
-            parent_item = QtGui.QStandardItem(f"{icons.get(category, '📘')}  {category}")
-            parent_item.setFlags(QtCore.Qt.ItemIsEnabled)  # seçili olmasın, sadece başlık
-            parent_item.setEditable(False)
-            parent_item.setFont(QtGui.QFont("Segoe UI", 10, QtGui.QFont.Bold))
-            parent_item.setForeground(QtGui.QColor("#f6e58d"))
-
-            # alt topicler
-            for topic_name in topics.keys():
-                child = QtGui.QStandardItem(f"• {topic_name}")
-                child.setEditable(False)
-                child.setData(topic_name, QtCore.Qt.UserRole)   # gerçek ad
-                child.setFont(QtGui.QFont("Segoe UI", 10))
-                child.setForeground(QtGui.QColor("#ecf0f1"))
-                parent_item.appendRow(child)
-
-            self.topic_model.appendRow(parent_item)
-
-        # Görünüm: QTreeView (kategorili)
-        view = QtWidgets.QTreeView()
-        view.setHeaderHidden(True)
-        view.setRootIsDecorated(True)
-        view.setExpandsOnDoubleClick(False)
-        view.setEditTriggers(QtWidgets.QAbstractItemView.NoEditTriggers)  # EDİT YOK
-
-        view.setStyleSheet("""
-            QTreeView {
-                background: #2d3436;
-                color: #ecf0f1;
-                border-radius: 8px;
-                padding: 4px 6px;
-                outline: none;
-                font-size: 13px;
-            }
-            QTreeView::item {
-                height: 24px;
-                padding: 2px 6px;
-            }
-            QTreeView::item:selected {
-                background: #6c5ce7;
-                color: #ffffff;
-            }
-            QTreeView::branch {
-                background: transparent;
-            }
-            QTreeView::branch:selected {
-                background: transparent;
-            }
-        """)
-
-        self.topic_combo.setView(view)
-        self.topic_combo.setCurrentIndex(0)   # başlangıç: Free Chat
-        self.topic_combo.view().clicked.connect(self._on_topic_view_clicked)
-
-        # state değişkenleri
-        self.current_topic_key = None
-        self.current_topic_prompt = None
-
-        # Persona selection
-        self.persona_combo = QtWidgets.QComboBox()
-        self.persona_combo.addItems([
-            "None (Default)",
-            "Friendly 😊",
-            "Formal 🎓",
-            "Coach 💪",
-            "Comedian 😂",
-            "Romantic 💕",
-        ])
-        self.persona_combo.setCurrentIndex(0)
-        self.persona_combo.setToolTip("Select AI's personality style")
-        self.persona_combo.setStyleSheet("""
-            QComboBox {
-                background:#2c3e50; color:#f1f2f6; border:1px solid #7f8c8d;
-                border-radius:8px; padding:6px 10px; font-size:14px; min-width:220px;
-            }
-            QComboBox:hover { border:1px solid #a29bfe; }
-            QComboBox::drop-down { border:none; width:25px; }
-        """)
-        # 🔹 Topic, persona ile aynı görünsün
-        self.topic_combo.setStyleSheet(self.persona_combo.styleSheet())
-        # Simple static avatar (FR25)
-        self.ai_avatar_label = QtWidgets.QLabel()
-        avatar_pix = QtGui.QPixmap("app/resources/images/ai_tutor_logo.png")
-        if not avatar_pix.isNull():
-            size = 40
-            rounded = make_round_pixmap(avatar_pix, size)
-            self.ai_avatar_label.setFixedSize(size, size)
-            self.ai_avatar_label.setPixmap(
-                rounded.scaled(size, size, QtCore.Qt.KeepAspectRatio, QtCore.Qt.SmoothTransformation)
-            )
-        else:
-            self.ai_avatar_label.setText("AI")
-
         # ===== Left: sessions panel =====
         left = QtWidgets.QWidget()
         left_v = QtWidgets.QVBoxLayout(left)
-        left_v.setContentsMargins(0, 0, 0, 0)
+        left_v.setContentsMargins(8, 8, 8, 8)
         left_v.setSpacing(8)
 
         header = QtWidgets.QLabel("Chats")
@@ -311,11 +196,16 @@ class MainWindow(QtWidgets.QWidget):
         left_v.addWidget(self.session_list, 1)
         left_v.addLayout(btn_row)
 
-        # ===== Right: tabs (Chat + Listening + Vocabulary) =====
+        # ===== Right: Chat + Listening tabs =====
+        # Use VocabBrowser instead of QTextBrowser
         self.history = VocabBrowser()
         self.history.setStyleSheet(self.history_style_sheet())
         self.history.wordActivated.connect(self._on_vocab_word_activated)
         self.vocab_explained_signal.connect(self._show_vocab_explanation)
+
+        # Grammar hover
+        self.history.viewport().setMouseTracking(True)
+        self.history.viewport().installEventFilter(self)
 
         self.input = QtWidgets.QLineEdit()
         self.input.setPlaceholderText("Type a message and press Enter…")
@@ -341,10 +231,121 @@ class MainWindow(QtWidgets.QWidget):
         chat_page = QtWidgets.QWidget()
         chat_v = QtWidgets.QVBoxLayout(chat_page)
 
+        # ---------------- TOPIC DROPDOWN (Hierarchical) ----------------
+        self.topic_combo = QtWidgets.QComboBox()
+        self.topic_combo.setEditable(False)
+        self.topic_combo.setMinimumWidth(220)
+
+        # Hierarchical model
+        self.topic_model = QtGui.QStandardItemModel(self.topic_combo)
+        self.topic_combo.setModel(self.topic_model)
+
+        icons = {"Daily Life": "🏠", "Travel": "✈️", "Professional": "💼"}
+
+        # 0. row: Free Chat
+        free_item = QtGui.QStandardItem("🌐 Free Chat")
+        free_item.setData("__free__", QtCore.Qt.UserRole)
+        free_item.setEditable(False)
+        self.topic_model.appendRow(free_item)
+
+        # Categories + sub topics
+        for category, topics in self.topic_prompts.items():
+            parent_item = QtGui.QStandardItem(f"{icons.get(category, '📘')}  {category}")
+            parent_item.setFlags(QtCore.Qt.ItemIsEnabled)
+            parent_item.setEditable(False)
+            parent_item.setFont(QtGui.QFont("Segoe UI", 10, QtGui.QFont.Bold))
+            parent_item.setForeground(QtGui.QColor("#f6e58d"))
+
+            for topic_name in topics.keys():
+                child = QtGui.QStandardItem(f"• {topic_name}")
+                child.setEditable(False)
+                child.setData(topic_name, QtCore.Qt.UserRole)
+                child.setFont(QtGui.QFont("Segoe UI", 10))
+                child.setForeground(QtGui.QColor("#ecf0f1"))
+                parent_item.appendRow(child)
+
+            self.topic_model.appendRow(parent_item)
+
+        # View: QTreeView
+        view = QtWidgets.QTreeView()
+        view.setHeaderHidden(True)
+        view.setRootIsDecorated(True)
+        view.setExpandsOnDoubleClick(False)
+        view.setEditTriggers(QtWidgets.QAbstractItemView.NoEditTriggers)
+
+        view.setStyleSheet("""
+            QTreeView {
+                background: #2d3436;
+                color: #ecf0f1;
+                border-radius: 8px;
+                padding: 4px 6px;
+                outline: none;
+                font-size: 13px;
+            }
+            QTreeView::item {
+                height: 24px;
+                padding: 2px 6px;
+            }
+            QTreeView::item:selected {
+                background: #6c5ce7;
+                color: #ffffff;
+            }
+            QTreeView::branch {
+                background: transparent;
+            }
+            QTreeView::branch:selected {
+                background: transparent;
+            }
+        """)
+
+        self.topic_combo.setView(view)
+        self.topic_combo.setCurrentIndex(0)
+        self.topic_combo.view().clicked.connect(self._on_topic_view_clicked)
+
+        # state variables
+        self.current_topic_key = None
+        self.current_topic_prompt = None
+
+        # Persona selection
+        self.persona_combo = QtWidgets.QComboBox()
+        self.persona_combo.addItems([
+            "None (Default)",
+            "Friendly 😊",
+            "Formal 🎓",
+            "Coach 💪",
+            "Comedian 😂",
+            "Romantic 💕",
+        ])
+        self.persona_combo.setCurrentIndex(0)
+        self.persona_combo.setToolTip("Select AI's personality style")
+        self.persona_combo.setStyleSheet("""
+            QComboBox {
+                background:#2c3e50; color:#f1f2f6; border:1px solid #7f8c8d;
+                border-radius:8px; padding:6px 10px; font-size:14px; min-width:220px;
+            }
+            QComboBox:hover { border:1px solid #a29bfe; }
+            QComboBox::drop-down { border:none; width:25px; }
+        """)
+        # Topic combo same style
+        self.topic_combo.setStyleSheet(self.persona_combo.styleSheet())
+
+        # Simple static avatar
+        self.ai_avatar_label = QtWidgets.QLabel()
+        avatar_pix = QtGui.QPixmap("app/resources/images/ai_tutor_logo.png")
+        if not avatar_pix.isNull():
+            size = 40
+            rounded = make_round_pixmap(avatar_pix, size)
+            self.ai_avatar_label.setFixedSize(size, size)
+            self.ai_avatar_label.setPixmap(
+                rounded.scaled(size, size, QtCore.Qt.KeepAspectRatio, QtCore.Qt.SmoothTransformation)
+            )
+        else:
+            self.ai_avatar_label.setText("AI")
+
         # Top bar: avatar + topic + persona
         top_bar = QtWidgets.QHBoxLayout()
-        #top_bar.addWidget(self.ai_avatar_label)
-        #top_bar.addSpacing(8)
+        top_bar.addWidget(self.ai_avatar_label)
+        top_bar.addSpacing(8)
 
         lbl_topic = QtWidgets.QLabel("🗣️ Topic:")
         lbl_topic.setStyleSheet("font-weight:bold; color:#ffbe76; font-size:14px;")
@@ -369,10 +370,19 @@ class MainWindow(QtWidgets.QWidget):
         chat_v.addLayout(h1)
         chat_v.addWidget(self.status, 0)
 
+        # ✨ Summary report button
+        summary_row = QtWidgets.QHBoxLayout()
+        summary_row.addStretch(1)
+        self.summary_btn = QtWidgets.QPushButton("See summary report")
+        self.summary_btn.setToolTip("Generate performance summary and next lesson topic")
+        self.summary_btn.clicked.connect(self._on_summary_clicked)
+        summary_row.addWidget(self.summary_btn)
+        chat_v.addLayout(summary_row)
+
         listen_page = ListeningPracticeWidget()
         self.vocab_page = VocabListWidget(self.user_id)
 
-        tabs = QtWidgets.QTabWidget(self)
+        tabs = QtWidgets.QTabWidget()
         tabs.addTab(chat_page, "Chat")
         tabs.addTab(listen_page, "Listening Practice")
         tabs.addTab(self.vocab_page, "My Vocabulary")
@@ -386,15 +396,14 @@ class MainWindow(QtWidgets.QWidget):
         splitter.setStretchFactor(1, 1)
         splitter.setSizes([260, 820])
 
-        root = QtWidgets.QVBoxLayout(self)
         root.addWidget(splitter)
 
-        # Signals
+        # ---------- Signals ----------
         self.input.returnPressed.connect(self._on_enter)
         self.bot_text_signal.connect(self._append_bot)
         self.stt_text_signal.connect(self._on_stt)
 
-        # STT
+        # ---------- STT ----------
         try:
             self.stt = STTEngine()
             self.mic_btn.toggled.connect(self._toggle_mic)
@@ -406,27 +415,35 @@ class MainWindow(QtWidgets.QWidget):
             self.lang_combo.setEnabled(False)
             self.status.setText(f"Azure STT init error: {e}")
 
-        # STT buffers
+        # STT / evaluation buffers
         self._stt_buffer = []
         self._last_partial = ""
         self._flushing = False
         self._last_pa = None
 
-        # Supabase sessions
+        # ✨ For reports
+        self._grammar_events = []  # list of {original, corrected, errors}
+        self._pa_scores = []       # list of pronunciation score dicts
+
+        # ---------- Supabase: load sessions & pick default ----------
         self.session_id = None
         self._load_sessions_and_select_default()
 
         # After sessions are ready, run placement test if needed
         QtCore.QTimer.singleShot(800, lambda: run_placement_test_if_needed(self))
+
+    # =============================================================
+    #  Topic handling
+    # =============================================================
     def _on_topic_view_clicked(self, index: QtCore.QModelIndex):
-        """Kategoriye tıklayınca aç/kapa, alt topic'e tıklayınca Tutor başlatsın."""
+        """When clicking category, expand/collapse; when clicking sub-topic, start conversation."""
         item = self.topic_model.itemFromIndex(index)
         if item is None:
             return
 
         view: QtWidgets.QTreeView = self.topic_combo.view()  # type: ignore
 
-        # 0. satır: Free Chat
+        # 0. row: Free Chat
         first_item = self.topic_model.item(0)
         if item is first_item and not item.hasChildren():
             self.topic_combo.setCurrentIndex(0)
@@ -435,10 +452,10 @@ class MainWindow(QtWidgets.QWidget):
 
             self.current_topic_key = None
             self.current_topic_prompt = None
-            self.append_bot("Switched to Free Chat. You can talk about anything you like 🙂", [])
+            self._append_bot_simple("Switched to Free Chat. You can talk about anything you like 🙂")
             return
 
-        # KATEGORİ satırı (Daily Life, Travel, Professional) → sadece aç/kapa
+        # CATEGORY row (Daily Life, Travel, Professional) → expand/collapse
         if item.hasChildren():
             if view.isExpanded(index):
                 view.collapse(index)
@@ -447,24 +464,21 @@ class MainWindow(QtWidgets.QWidget):
             QtCore.QTimer.singleShot(0, self.topic_combo.showPopup)
             return
 
-        # ALT TOPIC (At the Restaurant, Hotel Check-in, ...)
+        # SUB TOPIC (At the Restaurant, Hotel Check-in, ...)
         topic_name = item.data(QtCore.Qt.UserRole) or item.text()
         topic_name = str(topic_name).lstrip("• ").strip()
 
-        # Combo üstündeki yazıyı güncelle
+        # Update combo text
         self.topic_combo.setCurrentText(f"• {topic_name}")
         self.topic_combo.hidePopup()
 
-        # Seçili topic'i kaydet
+        # Save selected topic
         self.current_topic_key = topic_name
 
-        # İstersen gerçekten yeni chat aç:
-        try:
-            self.on_new_chat_clicked()   # New butonun fonksiyon adı buysa; farklıysa değiştir
-        except AttributeError:
-            pass
+        # Optionally open new chat
+        # self._new_chat()
 
-        # topic_prompts içinden bu topic'in açıklamasını bul
+        # Find topic prompt
         topic_prompt = ""
         for category, topics in self.topic_prompts.items():
             if topic_name in topics:
@@ -473,71 +487,17 @@ class MainWindow(QtWidgets.QWidget):
 
         self.current_topic_prompt = topic_prompt
 
-        # Tutor açılış mesajı
+        # Tutor opening message
         opening = (
             f"Great, you chose the topic **{topic_name}**.\n\n"
             f"{topic_prompt}\n\n"
             f"Let's start! Say something and I'll reply in this scenario 😊"
         )
-        self.append_bot(opening, new_words=[])
+        self._append_bot_simple(opening)
 
-    # ---------- topic tree handler ----------
-    def _start_topic_conversation(self, topic_key: str) -> None:
-        """
-        Seçilen topic için system prompt'u ayarla ve varsa açılış mesajını yaz.
-        self.topic_prompts sözlüğünden çekiyoruz.
-        """
-        topic_conf = None
-
-        # topic_prompts içinden topic'i bul
-        for category, topics in self.topic_prompts.items():
-            if topic_key in topics:
-                topic_conf = topics[topic_key]
-                break
-
-        if topic_conf is None:
-            # bulunamazsa free chat gibi davran
-            self.current_topic_prompt = None
-            return
-
-        # system prompt'u sakla (Gemini çağrısında kullanacaksın)
-        self.current_topic_prompt = topic_conf.get("system", "")
-
-        # Açılış cümlesi (ör: "You are at a restaurant, the waiter greets you...")
-        opening = topic_conf.get("opening", "")
-        if opening:
-            # kendi bot-yazdırma fonksiyonunu kullan
-            self.append_bot(opening, new_words=[])
-
-
-    def _start_topic_conversation(self, topic_key: str) -> None:
-        """
-        Seçilen topic için system prompt'u ayarla ve varsa açılış mesajını yaz.
-        self.topic_prompts sözlüğünden çekiyoruz.
-        """
-        topic_conf = None
-
-        # topic_prompts içinden topic'i bul
-        for category, topics in self.topic_prompts.items():
-            if topic_key in topics:
-                topic_conf = topics[topic_key]
-                break
-
-        if topic_conf is None:
-            # bulunamazsa free chat gibi davran
-            self.current_topic_prompt = None
-            return
-
-        # system prompt'u sakla (Gemini çağrısında kullanacaksın)
-        self.current_topic_prompt = topic_conf.get("system", "")
-
-        # Açılış cümlesi (ör: "You are at a restaurant, the waiter greets you...")
-        opening = topic_conf.get("opening", "")
-        if opening:
-            # kendi bot-yazdırma fonksiyonunu kullan
-            self.append_bot(opening, new_words=[])
-
-    # ---------- sessions UI/load ----------
+    # =============================================================
+    #  Sessions UI / Supabase
+    # =============================================================
     def _load_sessions_and_select_default(self):
         self.session_list.clear()
         try:
@@ -602,7 +562,9 @@ class MainWindow(QtWidgets.QWidget):
             self.history.append(f"<p><i>Failed to load messages: {e}</i></p>")
 
     def _new_chat(self):
-        title, ok = QtWidgets.QInputDialog.getText(self, "New Chat", "Title:", text="New Chat")
+        title, ok = QtWidgets.QInputDialog.getText(
+            self, "New Chat", "Title:", text="New Chat"
+        )
         if not ok:
             return
         try:
@@ -623,7 +585,9 @@ class MainWindow(QtWidgets.QWidget):
         item = items[0]
         sid = item.data(QtCore.Qt.UserRole)
         current = item.text()
-        title, ok = QtWidgets.QInputDialog.getText(self, "Rename Chat", "Title:", text=current)
+        title, ok = QtWidgets.QInputDialog.getText(
+            self, "Rename Chat", "Title:", text=current
+        )
         if not ok:
             return
         try:
@@ -636,16 +600,25 @@ class MainWindow(QtWidgets.QWidget):
         items = self.session_list.selectedItems()
         if not items:
             return
+
         item = items[0]
         sid = item.data(QtCore.Qt.UserRole)
-        if QtWidgets.QMessageBox.question(
-                self, "Delete Chat", "Delete this chat? This can’t be undone."
-        ) != QtWidgets.QMessageBox.Yes:
+
+        confirmation = QtWidgets.QMessageBox.question(
+            self,
+            "Delete Chat",
+            "Delete this chat? This can't be undone.",
+        )
+
+        if confirmation != QtWidgets.QMessageBox.Yes:
             return
+
         try:
             delete_session(sid)
             row = self.session_list.row(item)
             self.session_list.takeItem(row)
+
+            # Select next chat or clear UI
             if self.session_list.count() > 0:
                 self.session_list.setCurrentRow(0)
             else:
@@ -703,81 +676,6 @@ class MainWindow(QtWidgets.QWidget):
 
         QtWidgets.QMessageBox.information(self, "Saved", "Chat exported successfully.")
 
-    # ---------- styles ----------
-    def history_style_sheet(self):
-        return """
-            QTextBrowser {
-                background-color: #34495e; color: #ecf0f1;
-                border: 1px solid #7f8c8d; border-radius: 8px;
-                padding: 10px; font-family: Segoe UI, Arial, sans-serif; font-size: 14px;
-            }
-            p { margin: 0 0 8px 0; }
-            b { color: #f1c40f; }
-            a { color: #74b9ff; }
-        """
-
-    # ------------- Chat send (with topic + persona) -------------
-    def _on_enter(self):
-        if not self.session_id:
-            QtWidgets.QMessageBox.warning(self, "No Chat", "Please create or select a chat first.")
-            return
-
-        text = self.input.text().strip()
-        if not text:
-            return
-        self.input.clear()
-
-        # UI: show user text
-        self._append_user(text)
-        try:
-            add_message(self.session_id, role="user", content=text)
-        except Exception as e:
-            self.history.append(f"<p><i>Save error (user): {e}</i></p>")
-
-        self.history.show_thinking("⏳ Thinking…")
-
-        # ---- persona + topic prompt shaping ----
-        topic = self.topic_combo.currentText().lstrip("• ").lstrip("🌐 ").strip()
-        persona_label = self.persona_combo.currentText()   # "Friendly 😊"
-        persona_key = persona_label.split()[0].lower()     # "friendly" etc.
-        if persona_key == "none":
-            persona_key = "neutral"
-
-        # Find topic context
-        context = ""
-        for cat, topics in self.topic_prompts.items():
-            if topic in topics:
-                context = topics[topic]
-                break
-
-        persona_styles = {
-            "neutral": "Use a clear, helpful but neutral tone.",
-            "friendly": "Be warm, encouraging and supportive. You can sometimes use emojis like 😊, but don't overuse them.",
-            "formal": "Use polite, academic and professional language. Avoid slang and emojis.",
-            "coach": "Act like a motivating language coach. Give short encouragement and small tips to improve.",
-            "comedian": "Keep a light, humorous tone with small jokes, but still answer clearly and respectfully.",
-            "romantic": "Use a soft, gentle and caring tone, but stay appropriate and focused on language learning.",
-        }
-        style_instr = persona_styles.get(persona_key, persona_styles["neutral"])
-
-        # Instead of overwriting the whole system prompt, we prepend a short tag
-        engine_input = (
-            f"[TOPIC: {topic} | PERSONA: {persona_key}]\n"
-            f"[STYLE_HINT: {style_instr}]\n\n"
-            f"{text}"
-        )
-
-        def worker():
-            # pass session_id for learning_events etc.
-            reply = self.engine.ask(engine_input, session_id=self.session_id)
-            try:
-                add_message(self.session_id, role="assistant", content=reply)
-            except Exception:
-                pass
-            self.bot_text_signal.emit(reply)
-
-        threading.Thread(target=worker, daemon=True).start()
-
     # ---------- Weak Points (global FR16/17) ----------
     def _show_weak_points(self):
         try:
@@ -802,13 +700,13 @@ class MainWindow(QtWidgets.QWidget):
         last_ts: str | None = None
 
         STOPWORDS = {
-            "the","and","for","with","this","that","you","your","have","has","had",
-            "are","was","were","but","not","just","very","really","can","could",
-            "will","would","about","from","into","over","under","they","them",
-            "their","there","here","then","than","because","when","what","how",
-            "why","who","whom","which","also","like","some","more","most","much",
-            "many","any","all","too","use","used","using","get","got","did",
-            "do","does","is","am","be","being","been"
+            "the", "and", "for", "with", "this", "that", "you", "your", "have", "has", "had",
+            "are", "was", "were", "but", "not", "just", "very", "really", "can", "could",
+            "will", "would", "about", "from", "into", "over", "under", "they", "them",
+            "their", "there", "here", "then", "than", "because", "when", "what", "how",
+            "why", "who", "whom", "which", "also", "like", "some", "more", "most", "much",
+            "many", "any", "all", "too", "use", "used", "using", "get", "got", "did",
+            "do", "does", "is", "am", "be", "being", "been"
         }
 
         CATEGORY_LABELS = {
@@ -955,7 +853,7 @@ class MainWindow(QtWidgets.QWidget):
         html_parts.append("<h2>Weak Points Overview</h2>")
         if focus_label:
             html_parts.append(
-                f"<p><b>Today’s focus:</b> {esc(focus_label)} &mdash; based on your recent mistakes.</p>"
+                f"<p><b>Today's focus:</b> {esc(focus_label)} &mdash; based on your recent mistakes.</p>"
             )
 
         html_parts.append("<h3>Progress stats</h3><ul>")
@@ -1099,7 +997,211 @@ class MainWindow(QtWidgets.QWidget):
 
         dlg.exec()
 
-    # ------------- STT -------------
+    # =============================================================
+    #  Styles
+    # =============================================================
+    def history_style_sheet(self):
+        return """
+            QTextBrowser {
+                background-color: #34495e; color: #ecf0f1;
+                border: 1px solid #7f8c8d; border-radius: 8px;
+                padding: 10px; font-family: Segoe UI, Arial, sans-serif; font-size: 14px;
+            }
+            p { margin: 2px 0 4px 0; line-height: 1.3; }
+            b { color: #f1c40f; }
+            a { color: #74b9ff; }
+
+            /* Summary report tweaks */
+            .summary-report { margin-top: 4px; }
+            .summary-report h3,
+            .summary-report h3.neon-title {
+                color: #39ff14;
+                margin: 4px 0 2px 0;
+            }
+            .summary-report p {
+                margin: 1px 0;
+                line-height: 1.25;
+            }
+            .summary-report ul {
+                margin: 2px 0 2px 18px;
+            }
+            .summary-report li {
+                margin: 0 0 2px 0;
+            }
+            .summary-wrapper { margin: 4px 0; }
+            .summary-subhead {
+                color: #ffe45c;
+            }
+        """
+
+    # =============================================================
+    #  HTML helpers
+    # =============================================================
+    def _escape_html(self, s: str) -> str:
+        return (
+            s.replace("&", "&amp;")
+            .replace("<", "&lt;")
+            .replace(">", "&gt;")
+        )
+
+    def _build_grammar_html(self, result: dict) -> str:
+        """
+        GeminiEngine.check_grammar output to HTML with underlined incorrect words.
+        """
+        original = result.get("original") or ""
+        errors = result.get("errors") or []
+
+        if not original:
+            return ""
+
+        if not errors:
+            return self._escape_html(original)
+
+        try:
+            errors = sorted(errors, key=lambda e: int(e.get("start", 0)))
+        except Exception:
+            pass
+
+        html_parts = []
+        pos = 0
+        n = len(original)
+
+        for err in errors:
+            try:
+                start = int(err.get("start", 0))
+                end = int(err.get("end", start))
+            except Exception:
+                continue
+
+            if start < 0 or end > n or start >= end or start < pos:
+                continue
+
+            normal_chunk = original[pos:start]
+            html_parts.append(self._escape_html(normal_chunk))
+
+            wrong = original[start:end]
+            suggestion = err.get("suggestion") or ""
+            href = "grammar://" + urllib.parse.quote(suggestion)
+
+            html_parts.append(
+                f'<a href="{href}" '
+                f'style="text-decoration: underline; text-decoration-color: #f1c40f; color: #f1c40f;">'
+                f'{self._escape_html(wrong)}</a>'
+            )
+
+            pos = end
+
+        if pos < n:
+            html_parts.append(self._escape_html(original[pos:]))
+
+        return "".join(html_parts)
+
+    # =============================================================
+    #  Chat
+    # =============================================================
+    def _on_enter(self):
+        if not self.session_id:
+            QtWidgets.QMessageBox.warning(
+                self, "No Chat", "Please create or select a chat first."
+            )
+            return
+
+        text = self.input.text().strip()
+        if not text:
+            return
+        self.input.clear()
+
+        # show & persist user message (with grammar highlight)
+        self._append_user_with_grammar(text)
+        try:
+            add_message(self.session_id, role="user", content=text)
+        except Exception as e:
+            self.history.append(f"<p><i>Save error (user): {e}</i></p>")
+
+        self.history.show_thinking("⏳ Thinking…")
+
+        # ---- persona + topic prompt shaping ----
+        topic = self.topic_combo.currentText().lstrip("• ").lstrip("🌐 ").strip()
+        persona_label = self.persona_combo.currentText()
+        persona_key = persona_label.split()[0].lower()
+        if persona_key == "none":
+            persona_key = "neutral"
+
+        # Find topic context
+        context = ""
+        for cat, topics in self.topic_prompts.items():
+            if topic in topics:
+                context = topics[topic]
+                break
+
+        persona_styles = {
+            "neutral": "Use a clear, helpful but neutral tone.",
+            "friendly": "Be warm, encouraging and supportive. You can sometimes use emojis like 😊, but don't overuse them.",
+            "formal": "Use polite, academic and professional language. Avoid slang and emojis.",
+            "coach": "Act like a motivating language coach. Give short encouragement and small tips to improve.",
+            "comedian": "Keep a light, humorous tone with small jokes, but still answer clearly and respectfully.",
+            "romantic": "Use a soft, gentle and caring tone, but stay appropriate and focused on language learning.",
+        }
+        style_instr = persona_styles.get(persona_key, persona_styles["neutral"])
+
+        # Instead of overwriting the whole system prompt, we prepend a short tag
+        engine_input = (
+            f"[TOPIC: {topic} | PERSONA: {persona_key}]\n"
+            f"[STYLE_HINT: {style_instr}]\n\n"
+            f"{text}"
+        )
+
+        def worker():
+            # pass session_id for learning_events etc.
+            reply = self.engine.ask(engine_input, session_id=self.session_id)
+            try:
+                add_message(self.session_id, role="assistant", content=reply)
+            except Exception:
+                pass
+            self.bot_text_signal.emit(reply)
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _append_user_with_grammar(self, text: str):
+        checker = getattr(self.engine, "check_grammar", None)
+        if not callable(checker):
+            self._append_user(text)
+            return
+
+        try:
+            result = checker(text)
+        except Exception as e:
+            self._append_user(text)
+            self.history.append(f"<p><i>Grammar check failed: {e}</i></p>")
+            return
+
+        html = self._build_grammar_html(result)
+        if not html:
+            self._append_user(text)
+            return
+
+        self.history.append(f"<p><b>You:</b><br>{html}</p>")
+
+        # store for summary reports
+        self._grammar_events.append(
+            {
+                "original": result.get("original", text),
+                "corrected": result.get("corrected", text),
+                "errors": result.get("errors", []) or [],
+            }
+        )
+
+        if result.get("errors"):
+            corrected = (result.get("corrected") or "").strip()
+            if corrected:
+                safe = self._escape_html(corrected)
+                self.history.append(
+                    f"<p><i>✅ Correct sentence:</i><br>{safe}</p>"
+                )
+
+    # =============================================================
+    #  STT
+    # =============================================================
     def _toggle_mic(self, on: bool):
         if not self.stt:
             return
@@ -1107,7 +1209,9 @@ class MainWindow(QtWidgets.QWidget):
             self._stt_buffer = []
             self._last_partial = ""
             self.mic_btn.setText("⏹ Stop")
-            self.status.setText("Listening… (I’ll keep recording until you press Stop)")
+            self.status.setText(
+                "Listening… (I'll keep recording until you press Stop)"
+            )
             self.stt.start(self._stt_cb)
         else:
             self.mic_btn.setText("🎤 Start")
@@ -1134,8 +1238,12 @@ class MainWindow(QtWidgets.QWidget):
             self.input.setFocus()
 
             safe = final_text.replace("<", "&lt;").replace(">", "&gt;")
-            self.history.append(f"<p><i>Draft from mic:</i><br>{safe}</p>")
-            self.status.setText("🎙️ Edit the text and press Enter to send.")
+            self.history.append(
+                f"<p><i>Draft from mic:</i><br>{safe}</p>"
+            )
+            self.status.setText(
+                "🎙️ Edit the text and press Enter to send."
+            )
         else:
             self.status.setText("🎙️ No speech captured.")
 
@@ -1143,20 +1251,37 @@ class MainWindow(QtWidgets.QWidget):
             pa = self._last_pa
             rows = []
             if pa.get("pronunciation") is not None:
-                rows.append(f"<tr><td>Overall</td><td><b>{pa['pronunciation']:.1f}</b></td></tr>")
+                rows.append(
+                    f"<tr><td>Overall</td>"
+                    f"<td><b>{pa['pronunciation']:.1f}</b></td></tr>"
+                )
             if pa.get("accuracy") is not None:
-                rows.append(f"<tr><td>Accuracy</td><td>{pa['accuracy']:.1f}</td></tr>")
+                rows.append(
+                    f"<tr><td>Accuracy</td><td>{pa['accuracy']:.1f}</td></tr>"
+                )
             if pa.get("fluency") is not None:
-                rows.append(f"<tr><td>Fluency</td><td>{pa['fluency']:.1f}</td></tr>")
+                rows.append(
+                    f"<tr><td>Fluency</td><td>{pa['fluency']:.1f}</td></tr>"
+                )
             if pa.get("completeness") is not None:
-                rows.append(f"<tr><td>Completeness</td><td>{pa['completeness']:.1f}</td></tr>")
+                rows.append(
+                    f"<tr><td>Completeness</td>"
+                    f"<td>{pa['completeness']:.1f}</td></tr>"
+                )
             if pa.get("prosody") is not None:
-                rows.append(f"<tr><td>Prosody</td><td>{pa['prosody']:.1f}</td></tr>")
+                rows.append(
+                    f"<tr><td>Prosody</td><td>{pa['prosody']:.1f}</td></tr>"
+                )
             table = "<table style='border-collapse:collapse'>"
             for r in rows:
                 table += f"<tr style='border-bottom:1px solid #555'>{r}</tr>"
             table += "</table>"
-            self.history.append(f"<p><b>Pronunciation (EN):</b><br>{table}</p>")
+            self.history.append(
+                f"<p><b>Pronunciation (EN):</b><br>{table}</p>"
+            )
+
+            # ✨ store scores for later summary
+            self._pa_scores.append(pa)
             self._last_pa = None
 
     def _on_lang_change(self, idx: int):
@@ -1172,6 +1297,7 @@ class MainWindow(QtWidgets.QWidget):
         self.stt.set_mode(mode)
         self.status.setText(f"STT mode → {mode}")
 
+    # bg thread -> UI thread
     def _stt_cb(self, text, is_final, words):
         self.stt_text_signal.emit(text, is_final, words)
 
@@ -1181,7 +1307,11 @@ class MainWindow(QtWidgets.QWidget):
         display_text = text
         if not is_final:
             self._last_partial = display_text
-            short = display_text if len(display_text) <= 100 else (display_text[:100] + "…")
+            short = (
+                display_text
+                if len(display_text) <= 100
+                else (display_text[:100] + "…")
+            )
             self.status.setText(f"(live) {short}")
             return
 
@@ -1191,17 +1321,165 @@ class MainWindow(QtWidgets.QWidget):
 
         self._last_pa = None
         if (
-                words and isinstance(words, list)
+                words
+                and isinstance(words, list)
                 and isinstance(words[0], dict)
                 and "_pa_overall" in words[0]
         ):
             self._last_pa = words[0]["_pa_overall"]
 
-    # ------------- UI helpers & vocab -------------
-    def _append_user(self, text: str):
+    # =============================================================
+    #  Summary report helpers
+    # =============================================================
+    def _aggregate_grammar_errors(self):
+        total = 0
+        counter = Counter()
+        for ev in self._grammar_events:
+            for err in ev.get("errors", []):
+                word = (err.get("original") or "").strip()
+                if not word:
+                    continue
+                total += 1
+                counter[word] += 1
+        if counter:
+            top = ", ".join(f"{w} (x{c})" for w, c in counter.most_common(5))
+        else:
+            top = "—"
+        return total, top
+
+    def _aggregate_pronunciation_summary(self) -> str:
+        if not self._pa_scores:
+            return "No pronunciation scores recorded yet."
+
+        keys = ["pronunciation", "accuracy", "fluency", "completeness", "prosody"]
+        avgs = {}
+        for key in keys:
+            vals = [p[key] for p in self._pa_scores if p.get(key) is not None]
+            if vals:
+                avgs[key] = sum(vals) / len(vals)
+
+        parts = [f"{k.capitalize()}: {v:.1f}" for k, v in avgs.items()]
+        return "; ".join(parts) if parts else "Scores not available."
+
+    def _build_summary_with_gemini(self) -> str:
+        # Chat log from Supabase
+        try:
+            msgs = list_messages(self.session_id, limit=200)
+        except Exception:
+            msgs = []
+
+        lines = []
+        for m in msgs:
+            role = m.get("role") or "assistant"
+            content = m.get("content") or ""
+            label = "Student" if role == "user" else "Tutor"
+            lines.append(f"{label}: {content}")
+        chat_log = "\n".join(lines[-40:])  # last ~40 lines
+
+        total_errors, top_words = self._aggregate_grammar_errors()
+        pron_summary = self._aggregate_pronunciation_summary()
+
+        prompt = f"""
+You are an experienced English tutor.
+
+I will give you the student's recent chat conversation with you, some aggregate grammar mistakes and pronunciation scores.
+From this data, create a concise performance report.
+
+Requirements:
+- Write the report in HTML (you can use <h3>, <p>, <ul>, <li>, <b>).
+- Sections:
+  <h3>Summary Report</h3>
+  - 1–2 sentences describing the student's overall level and progress.
+  - Give an overall score from 0 to 100.
+  <h3>Detailed Feedback</h3>
+  - Grammar: strengths and main problems.
+  - Vocabulary: what the student uses well / needs to improve.
+  - Fluency: comment on how smoothly the student speaks/writes.
+  - Pronunciation: mention and interpret the pronunciation scores.
+  <h3>NEXT LESSON TOPIC</h3>
+  - Propose ONE concrete next lesson topic (for example "Past Simple vs Present Perfect").
+  - Add 2–3 short practice ideas for that topic (bullet list).
+
+- Base your comments on the data, especially repeated grammar errors and pronunciation scores.
+- Talk directly to the student as "you".
+- Do NOT include the raw chat log text inside the report.
+
+DATA:
+--- CHAT LOG ---
+{chat_log}
+
+--- GRAMMAR SUMMARY ---
+Total errors: {total_errors}
+Top problematic words/phrases: {top_words}
+
+--- PRONUNCIATION SUMMARY ---
+{pron_summary}
+"""
+        return self.engine.ask(prompt)
+
+    def _wrap_summary_html(self, html: str) -> str:
+        content = html or "<p>No summary generated.</p>"
+
+        # Gemini sometimes wraps the HTML in Markdown code fences
+        fenced = re.match(r"```(?:\w+)?\s*(.*?)\s*```", content, flags=re.DOTALL)
+        if fenced:
+            content = fenced.group(1).strip()
+
+        # Ensure main titles get neon style (case-insensitive)
+        def neon_title(match):
+            inner = match.group(1)
+            return f"<h3 class='neon-title'>{inner}</h3>"
+
+        content = re.sub(
+            r"<h3>(Summary Report|Detailed Feedback|NEXT LESSON TOPIC)</h3>",
+            neon_title,
+            content,
+            flags=re.IGNORECASE,
+        )
+
+        # Highlight key subheadings (Grammar, Vocabulary, etc.)
+        def highlight_subhead(match):
+            label = match.group(1)
+            tail = match.group(2) or ""
+            return f"<b class='summary-subhead'>{label}{tail}</b>"
+
+        content = re.sub(
+            r"<b>(Grammar|Vocabulary|Fluency|Pronunciation)(:?)</b>",
+            highlight_subhead,
+            content,
+            flags=re.IGNORECASE,
+        )
+
+        return f"<div class='summary-report'>{content}</div>"
+
+    def _on_summary_clicked(self):
+        if not self.session_id:
+            QtWidgets.QMessageBox.warning(
+                self, "No Chat", "Please create or select a chat first."
+            )
+            return
+
+        # placeholder
+        self.history.show_thinking("⏳ Thinking…")
+
+        def worker():
+            try:
+                report = self._build_summary_with_gemini()
+                report = self._wrap_summary_html(report)
+            except Exception as e:
+                report = f"[Summary error: {e}]"
+            self.bot_text_signal.emit(report)
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    # =============================================================
+    #  UI helpers & vocab
+    # =============================================================
+    def _append_user(self, text):
         self.history.append_user(text)
 
     def _append_bot(self, text: str):
+        """Append bot message with vocab highlighting support"""
         known = set()
         if self.user_id:
             try:
@@ -1209,7 +1487,31 @@ class MainWindow(QtWidgets.QWidget):
             except Exception:
                 known = set()
         new_words = find_new_vocabulary(text, known_words=known)
-        self.history.append_bot(text, new_words)
+
+        is_summary = "summary-report" in text
+        if is_summary:
+            formatted = text
+        else:
+            formatted = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", text).replace("\n", "<br>")
+
+        plain = self.history.toPlainText().strip()
+        if plain.endswith("Thinking…") or plain.endswith("⏳ Thinking…"):
+            cursor = self.history.textCursor()
+            cursor.movePosition(QtGui.QTextCursor.End)
+            cursor.select(QtGui.QTextCursor.BlockUnderCursor)
+            cursor.removeSelectedText()
+            cursor.deletePreviousChar()
+
+        if is_summary:
+            html = f"<div class='summary-wrapper'><p><b>Tutor:</b></p>{formatted}</div>"
+            self.history.append(html)
+        else:
+            self.history.append_bot(formatted, new_words)
+
+    def _append_bot_simple(self, text: str):
+        """Simple bot message without vocab highlighting (used for system messages)"""
+        formatted = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", text).replace("\n", "<br>")
+        self.history.append(f"<p><b>Tutor:</b><br>{formatted}</p>")
 
     def _on_vocab_word_activated(self, word: str, context: str):
         def worker():
@@ -1255,17 +1557,36 @@ class MainWindow(QtWidgets.QWidget):
     def _on_vocab_mode_toggled(self, on: bool):
         self.history.set_vocab_mode(on)
 
+    # =============================================================
+    #  Event filter (grammar hover tooltips)
+    # =============================================================
+    def eventFilter(self, obj, event):
+        if obj is self.history.viewport() and event.type() == QtCore.QEvent.MouseMove:
+            pos = event.pos()
+            href = self.history.anchorAt(pos)
+            if href and href.startswith("grammar://"):
+                suggestion = urllib.parse.unquote(href[len("grammar://"):])
+                if suggestion:
+                    QtWidgets.QToolTip.showText(
+                        event.globalPos(),
+                        f"Correct: {suggestion}",
+                    )
+            else:
+                QtWidgets.QToolTip.hideText()
+        return super().eventFilter(obj, event)
 
-# --- Avatar helper ---
-from PySide6.QtGui import QPixmap, QPainter, QPainterPath
-def make_round_pixmap(original: QPixmap, size: int) -> QPixmap:
-    rounded = QPixmap(size, size)
+
+# =================================================================
+#  Avatar helper
+# =================================================================
+def make_round_pixmap(original: QtGui.QPixmap, size: int) -> QtGui.QPixmap:
+    rounded = QtGui.QPixmap(size, size)
     rounded.fill(QtCore.Qt.transparent)
 
-    painter = QPainter(rounded)
-    painter.setRenderHint(QPainter.Antialiasing)
+    painter = QtGui.QPainter(rounded)
+    painter.setRenderHint(QtGui.QPainter.Antialiasing)
 
-    path = QPainterPath()
+    path = QtGui.QPainterPath()
     path.addEllipse(0, 0, size, size)
     painter.setClipPath(path)
 
@@ -1274,13 +1595,35 @@ def make_round_pixmap(original: QPixmap, size: int) -> QPixmap:
     return rounded
 
 
-if __name__ == '__main__':
+# =================================================================
+#  Stand-alone test
+# =================================================================
+if __name__ == "__main__":
+
     class MockEngine:
         def ask(self, prompt, session_id=None):
-            import time; time.sleep(0.5)
-            return f"Hello! You asked: **{prompt}**."
+            import time
+            time.sleep(0.6)
+            return f"Hello! You asked about: {prompt[:80]} ..."
+
+        def check_grammar(self, text: str):
+            if "goed" in text:
+                return {
+                    "original": text,
+                    "corrected": text.replace("goed", "went"),
+                    "errors": [
+                        {
+                            "original": "goed",
+                            "suggestion": "went",
+                            "start": text.index("goed"),
+                            "end": text.index("goed") + 4,
+                        }
+                    ],
+                }
+            return {"original": text, "corrected": text, "errors": []}
 
     app = QtWidgets.QApplication(sys.argv)
-    w = MainWindow(MockEngine())
+    engine = MockEngine()
+    w = MainWindow(engine)
     w.show()
     sys.exit(app.exec())
