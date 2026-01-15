@@ -88,49 +88,136 @@ class MainWindow(QtWidgets.QMainWindow):
         self.setWindowTitle("AI Tutor – Chat + Voice (Azure + Gemini)")
         self.resize(1120, 680)
 
-        # ---- Global stylesheet ----
+        # ---- Global stylesheet (Pastel Dashboard) ----
         self.setStyleSheet("""
-            QWidget {
-                background-color: #3c3e30;
-                color: #eceff1;
-            }
-            QLineEdit {
-                background-color: #34495e;
-                color: #ecf0f1;
-                border: 1px solid #3c3e30;
-                border-radius: 4px;
-                padding: 6px 8px;
-            }
-            QPushButton {
-                background-color: #2d4369;
-                border: 1px solid #3c3e30;
-                padding: 6px 10px;
-            }
-            QPushButton:checked {
-                background-color: #6c5ce7;
-            }
-            QComboBox {
-                background-color: #2d3436;
-                color: #ecf0f1;
-                border: 1px solid #7f8c8d;
-                border-radius: 6px;
-                padding: 4px 8px;
-            }
-            QListWidget {
-                background-color: #2b2b2b;
-                color: #f5f5f5;
-                border: 1px solid #7f8c8d;
-                border-radius: 6px;
-            }
-            QListWidget::item:selected {
-                background-color: #91AEC1;
-                color: white;
-            }
-            QListWidget::item:hover {
-                background-color: #444;
-                color: #ffffff;
-            }
+/* ===== Base ===== */
+QWidget {
+    font-family: "Segoe UI";
+    font-size: 14px;
+    color: #1F2330;
+    background: #F6F7FB;
+}
+QMainWindow::separator { background: transparent; }
+
+/* ===== Frames ===== */
+#Sidebar {
+    background: #FFFFFF;
+    border-right: 1px solid #E9EAF2;
+}
+#MainArea {
+    background: #F6F7FB;
+}
+#Card {
+    background: #FFFFFF;
+    border: 1px solid #E9EAF2;
+    border-radius: 18px;
+}
+#TopbarCard {
+    background: #FFFFFF;
+    border: 1px solid #E9EAF2;
+    border-radius: 18px;
+}
+#InputCard {
+    background: #FFFFFF;
+    border: 1px solid #E9EAF2;
+    border-radius: 18px;
+}
+
+/* ===== Labels ===== */
+#SidebarTitle {
+    font-size: 16px;
+    font-weight: 700;
+    background: transparent;
+}
+#MutedText {
+    color: #6B7280;
+    background: transparent;
+}
+
+/* ===== Inputs ===== */
+QLineEdit {
+    background: #FFFFFF;
+    border: 1px solid #E9EAF2;
+    border-radius: 14px;
+    padding: 10px 12px;
+    selection-background-color: #EDEBFF;
+}
+QLineEdit:focus {
+    border: 1px solid #6D5EF6;
+}
+
+/* ===== ComboBox ===== */
+QComboBox {
+    background: #FFFFFF;
+    border: 1px solid #E9EAF2;
+    border-radius: 14px;
+    padding: 8px 10px;
+    min-height: 38px;
+}
+QComboBox:hover {
+    border: 1px solid #C9C7FF;
+}
+QComboBox::drop-down { border: none; width: 28px; }
+
+/* ===== List ===== */
+QListWidget {
+    background: #FFFFFF;
+    border: 1px solid #E9EAF2;
+    border-radius: 14px;
+    padding: 6px;
+}
+QListWidget::item {
+    padding: 10px 10px;
+    border-radius: 12px;
+}
+QListWidget::item:hover {
+    background: #F2F3FA;
+}
+QListWidget::item:selected {
+    background: #EDEBFF;
+    color: #3B2FEA;
+    font-weight: 600;
+}
+
+/* ===== Buttons ===== */
+QPushButton {
+    background: #FFFFFF;
+    border: 1px solid #E9EAF2;
+    border-radius: 14px;
+    padding: 10px 12px;
+}
+QPushButton:hover { border: 1px solid #6D5EF6; }
+QPushButton:pressed { background: #F2F3FA; }
+QPushButton:checked {
+    background: #EDEBFF;
+    border: 1px solid #C9C7FF;
+    color: #3B2FEA;
+    font-weight: 600;
+}
+
+/* ===== TabWidget ===== */
+QTabWidget::pane {
+    border: none;
+    background: transparent;
+}
+QTabBar::tab {
+    background: transparent;
+    padding: 10px 14px;
+    margin-right: 6px;
+    border-radius: 12px;
+    color: #1F2330;
+}
+QTabBar::tab:hover { background: #F2F3FA; }
+QTabBar::tab:selected {
+    background: #FFFFFF;
+    border: 1px solid #E9EAF2;
+    font-weight: 700;
+}
+
+/* ===== Splitter handle ===== */
+QSplitter::handle { background: #E9EAF2; }
         """)
+
 
         # =========================================================
         #  CENTRAL WIDGET
@@ -164,19 +251,21 @@ class MainWindow(QtWidgets.QMainWindow):
         }
 
         # ===== Left: sessions panel =====
-        left = QtWidgets.QWidget()
+        left = QtWidgets.QFrame()
+        left.setObjectName("Sidebar")
         left_v = QtWidgets.QVBoxLayout(left)
-        left_v.setContentsMargins(8, 8, 8, 8)
-        left_v.setSpacing(8)
+        left_v.setContentsMargins(16, 16, 16, 16)
+        left_v.setSpacing(12)
 
         header = QtWidgets.QLabel("Chats")
-        header.setStyleSheet("font-weight:600;")
+        header.setObjectName("SidebarTitle")
 
         self.session_list = QtWidgets.QListWidget()
         self.session_list.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
         self.session_list.itemSelectionChanged.connect(self._on_session_selected)
 
         btn_row = QtWidgets.QHBoxLayout()
+        btn_row.setSpacing(10)
         self.btn_new = QtWidgets.QPushButton("New")
         self.btn_ren = QtWidgets.QPushButton("Rename")
         self.btn_del = QtWidgets.QPushButton("Delete")
@@ -233,6 +322,8 @@ class MainWindow(QtWidgets.QMainWindow):
 
         chat_page = QtWidgets.QWidget()
         chat_v = QtWidgets.QVBoxLayout(chat_page)
+        chat_v.setContentsMargins(16, 16, 16, 16)
+        chat_v.setSpacing(12)
 
         # ---------------- TOPIC DROPDOWN (Hierarchical) ----------------
         self.topic_combo = QtWidgets.QComboBox()
@@ -278,26 +369,26 @@ class MainWindow(QtWidgets.QMainWindow):
 
         view.setStyleSheet("""
             QTreeView {
-                background: #2d3436;
-                color: #ecf0f1;
-                border-radius: 8px;
-                padding: 4px 6px;
+                background: #FFFFFF;
+                color: #1F2330;
+                border: 1px solid #E9EAF2;
+                border-radius: 14px;
+                padding: 6px 8px;
                 outline: none;
                 font-size: 13px;
             }
             QTreeView::item {
-                height: 24px;
-                padding: 2px 6px;
+                height: 28px;
+                padding: 4px 8px;
+                border-radius: 10px;
+            }
+            QTreeView::item:hover {
+                background: #F2F3FA;
             }
             QTreeView::item:selected {
-                background: #6c5ce7;
-                color: #ffffff;
-            }
-            QTreeView::branch {
-                background: transparent;
-            }
-            QTreeView::branch:selected {
-                background: transparent;
+                background: #EDEBFF;
+                color: #3B2FEA;
+                font-weight: 600;
             }
         """)
 
@@ -351,9 +442,9 @@ class MainWindow(QtWidgets.QMainWindow):
         top_bar.addSpacing(8)
 
         lbl_topic = QtWidgets.QLabel("🗣️ Topic:")
-        lbl_topic.setStyleSheet("font-weight:bold; color:#ffbe76; font-size:14px;")
+        lbl_topic.setStyleSheet("font-weight:700; color:#3B2FEA;")
         lbl_persona = QtWidgets.QLabel("🎭 Persona:")
-        lbl_persona.setStyleSheet("font-weight:bold; color:#74b9ff; font-size:14px;")
+        lbl_persona.setStyleSheet("font-weight:700; color:#3B2FEA;")
 
         top_bar.addWidget(lbl_topic)
         top_bar.addWidget(self.topic_combo, 1)
@@ -362,15 +453,34 @@ class MainWindow(QtWidgets.QMainWindow):
         top_bar.addWidget(self.persona_combo, 1)
         top_bar.addStretch(1)
 
-        chat_v.addLayout(top_bar)
-        chat_v.addWidget(self.history, 1)
+        # --- Topbar Card ---
+        topbar_frame = QtWidgets.QFrame()
+        topbar_frame.setObjectName("TopbarCard")
+        topbar_l = QtWidgets.QHBoxLayout(topbar_frame)
+        topbar_l.setContentsMargins(14, 12, 14, 12)
+        topbar_l.setSpacing(10)
+        topbar_l.addLayout(top_bar)
+        chat_v.addWidget(topbar_frame)
 
-        h1 = QtWidgets.QHBoxLayout()
-        h1.addWidget(self.input, 1)
-        h1.addWidget(self.vocab_mode_btn, 0)
-        h1.addWidget(self.mic_btn, 0)
-        h1.addWidget(self.lang_combo, 0)
-        chat_v.addLayout(h1)
+        # --- Chat History Card ---
+        history_frame = QtWidgets.QFrame()
+        history_frame.setObjectName("Card")
+        history_l = QtWidgets.QVBoxLayout(history_frame)
+        history_l.setContentsMargins(14, 14, 14, 14)
+        history_l.addWidget(self.history)
+        chat_v.addWidget(history_frame, 1)
+
+        # --- Input Card ---
+        input_frame = QtWidgets.QFrame()
+        input_frame.setObjectName("InputCard")
+        input_l = QtWidgets.QHBoxLayout(input_frame)
+        input_l.setContentsMargins(14, 12, 14, 12)
+        input_l.setSpacing(10)
+        input_l.addWidget(self.input, 1)
+        input_l.addWidget(self.vocab_mode_btn, 0)
+        input_l.addWidget(self.mic_btn, 0)
+        input_l.addWidget(self.lang_combo, 0)
+        chat_v.addWidget(input_frame)
         chat_v.addWidget(self.status, 0)
 
         # ✨ Summary report button
@@ -389,17 +499,25 @@ class MainWindow(QtWidgets.QMainWindow):
         tabs = QtWidgets.QTabWidget()
         tabs.addTab(chat_page, "Chat")
         tabs.addTab(listen_page, "Listening Practice")
-        tabs.addTab(reading_page, "Reading Practice")  
+        tabs.addTab(reading_page, "Reading Practice")
         tabs.addTab(self.vocab_page, "My Vocabulary")
 
         # ===== Split left/right =====
+        # Main area wrapper (gives padding around tabs like a dashboard)
+        main_area = QtWidgets.QWidget()
+        main_area.setObjectName("MainArea")
+        main_v = QtWidgets.QVBoxLayout(main_area)
+        main_v.setContentsMargins(16, 16, 16, 16)
+        main_v.setSpacing(12)
+        main_v.addWidget(tabs, 1)
+
         splitter = QtWidgets.QSplitter()
-        splitter.setHandleWidth(6)
+        splitter.setHandleWidth(2)
         splitter.addWidget(left)
-        splitter.addWidget(tabs)
+        splitter.addWidget(main_area)
         splitter.setStretchFactor(0, 0)
         splitter.setStretchFactor(1, 1)
-        splitter.setSizes([260, 820])
+        splitter.setSizes([280, 840])
 
         root.addWidget(splitter)
 
@@ -1007,42 +1125,32 @@ class MainWindow(QtWidgets.QMainWindow):
     def history_style_sheet(self):
         return """
             QTextBrowser {
-                background-color: #34495e; color: #ecf0f1;
-                border: 1px solid #7f8c8d; border-radius: 8px;
-                padding: 10px; font-family: Segoe UI, Arial, sans-serif; font-size: 14px;
+                background-color: #FFFFFF;
+                color: #1F2330;
+                border: 1px solid #E9EAF2;
+                border-radius: 14px;
+                padding: 10px;
+                font-family: Segoe UI, Arial, sans-serif;
+                font-size: 14px;
             }
-            p { margin: 2px 0 4px 0; line-height: 1.3; }
-            b { color: #f1c40f; }
-            a { color: #74b9ff; text-decoration: none; }
+            p { margin: 2px 0 6px 0; line-height: 1.35; }
+            b { color: #3B2FEA; }
+            a { color: #3B82F6; text-decoration: none; }
+
             a.grammar-error {
-                color: #f39c12;
+                color: #F59E0B;
                 text-decoration: underline wavy;
-                text-decoration-color: #e74c3c;
+                text-decoration-color: #EF4444;
                 text-underline-offset: 2px;
                 cursor: help;
             }
 
             /* Summary report tweaks */
-            .summary-report { margin-top: 4px; }
-            .summary-report h3,
             .summary-report h3.neon-title {
-                color: #39ff14;
-                margin: 4px 0 2px 0;
+                color: #3B2FEA;
+                margin: 6px 0 4px 0;
             }
-            .summary-report p {
-                margin: 1px 0;
-                line-height: 1.25;
-            }
-            .summary-report ul {
-                margin: 2px 0 2px 18px;
-            }
-            .summary-report li {
-                margin: 0 0 2px 0;
-            }
-            .summary-wrapper { margin: 4px 0; }
-            .summary-subhead {
-                color: #ffe45c;
-            }
+            .summary-subhead { color: #6D5EF6; }
         """
 
     # =============================================================
@@ -1517,7 +1625,7 @@ Top problematic words/phrases: {top_words}
             self.bot_text_signal.emit(report)
 
         threading.Thread(target=worker, daemon=True).start()
-     # =============================================================
+    # =============================================================
     #  UI helpers & vocab
     # =============================================================
     def _append_bot(self, text: str):
@@ -1534,7 +1642,7 @@ Top problematic words/phrases: {top_words}
         new_words = find_new_vocabulary(text, known_words=known)
 
         self.history.append_bot(text, new_words)
-        
+
 
     def _on_vocab_word_activated(self, word: str, context: str):
         def worker():
