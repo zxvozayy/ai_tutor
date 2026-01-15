@@ -9,6 +9,8 @@ from PySide6 import QtWidgets, QtCore, QtGui
 from app.ui.listening_widget import ListeningPracticeWidget
 from app.ui.placement_test_dialog import PlacementTestDialog
 
+from app.ui.reading_widget import ReadingPracticeWidget
+
 # 🔤 Vocab features
 from app.ui.vocab_browser import VocabBrowser
 from app.ui.vocab_list_widget import VocabListWidget
@@ -381,11 +383,13 @@ class MainWindow(QtWidgets.QMainWindow):
         chat_v.addLayout(summary_row)
 
         listen_page = ListeningPracticeWidget()
+        reading_page = ReadingPracticeWidget()
         self.vocab_page = VocabListWidget(self.user_id)
 
         tabs = QtWidgets.QTabWidget()
         tabs.addTab(chat_page, "Chat")
         tabs.addTab(listen_page, "Listening Practice")
+        tabs.addTab(reading_page, "Reading Practice")  
         tabs.addTab(self.vocab_page, "My Vocabulary")
 
         # ===== Split left/right =====
