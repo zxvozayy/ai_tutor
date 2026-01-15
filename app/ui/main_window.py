@@ -197,7 +197,7 @@ class MainWindow(QtWidgets.QMainWindow):
         left_v.addLayout(btn_row)
 
         # ===== Right: Chat + Listening tabs =====
-        # Use VocabBrowser instead of QTextBrowser
+        # Use VocabBrowser
         self.history = VocabBrowser()
         self.history.setStyleSheet(self.history_style_sheet())
         self.history.wordActivated.connect(self._on_vocab_word_activated)
@@ -475,9 +475,6 @@ class MainWindow(QtWidgets.QMainWindow):
         # Save selected topic
         self.current_topic_key = topic_name
 
-        # Optionally open new chat
-        # self._new_chat()
-
         # Find topic prompt
         topic_prompt = ""
         for category, topics in self.topic_prompts.items():
@@ -552,23 +549,14 @@ class MainWindow(QtWidgets.QMainWindow):
                 role = m.get("role")
                 content = (m.get("content") or "")
                 if role == "user":
-                    # Display user message
-                    safe = self._escape_html(content)
-                    self.history.append(f"<p><b>You:</b><br>{safe}</p>")
+                    # Use VocabBrowser's append_user
+                    self.history.append_user(content)
                 else:
-                    # Display bot message with vocab highlighting
+                    # Use VocabBrowser's append_bot with vocab
                     new_words = find_new_vocabulary(content, known_words=known)
-                    formatted = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", content).replace("\n", "<br>")
+                    self.history.append_bot(content, new_words)
 
-                    # Use append_bot if VocabBrowser supports it, otherwise use append
-                    if hasattr(self.history, 'append_bot'):
-                        self.history.append_bot(formatted, new_words)
-                    else:
-                        self.history.append(f"<p><b>Tutor:</b><br>{formatted}</p>")
-
-            # Set vocab mode if available
-            if hasattr(self.history, 'set_vocab_mode') and callable(getattr(self.history, 'set_vocab_mode')):
-                self.history.set_vocab_mode(self.vocab_mode_btn.isChecked())
+            self.history.set_vocab_mode(self.vocab_mode_btn.isChecked())
         except Exception as e:
             self.history.append(f"<p><i>Failed to load messages: {e}</i></p>")
 
@@ -1064,20 +1052,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def _build_grammar_html(self, result: dict) -> str:
         """
-        FIXED: Build HTML with proper grammar error highlighting.
-        Expects result format:
-        {
-            "original": "original text",
-            "corrected": "corrected text",
-            "errors": [
-                {
-                    "original": "wrong word/phrase",
-                    "suggestion": "correct word/phrase",
-                    "start": int,  # character position
-                    "end": int     # character position
-                }
-            ]
-        }
+        Build HTML with grammar error highlighting.
         """
         original = result.get("original", "")
         errors = result.get("errors", [])
@@ -1092,7 +1067,6 @@ class MainWindow(QtWidgets.QMainWindow):
         try:
             sorted_errors = sorted(errors, key=lambda e: e.get("start", 0))
         except Exception:
-            # If sorting fails, just use as is
             sorted_errors = errors
 
         html_parts = []
@@ -1118,7 +1092,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 suggestion_escaped = self._escape_html(suggestion)
                 error_escaped = self._escape_html(error_text)
 
-                # Create grammar error link with custom styling
+                # Create grammar error link
                 href = "grammar://" + urllib.parse.quote(suggestion)
                 html_parts.append(
                     f'<a href="{href}" class="grammar-error" '
@@ -1128,9 +1102,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
                 pos = end
 
-            except Exception as e:
-                # Skip problematic errors
-                print(f"Error processing grammar error: {e}")
+            except Exception:
                 continue
 
         # Add remaining text
@@ -1140,7 +1112,7 @@ class MainWindow(QtWidgets.QMainWindow):
         return "".join(html_parts)
 
     # =============================================================
-    #  Chat
+    #  Chat - FIXED VERSION
     # =============================================================
     def _on_enter(self):
         if not self.session_id:
@@ -1154,18 +1126,16 @@ class MainWindow(QtWidgets.QMainWindow):
             return
         self.input.clear()
 
-        # show & persist user message (with grammar highlight)
+        # Show & persist user message (with grammar highlight)
         self._append_user_with_grammar(text)
+
         try:
             add_message(self.session_id, role="user", content=text)
         except Exception as e:
             self.history.append(f"<p><i>Save error (user): {e}</i></p>")
 
         # Show thinking indicator
-        if hasattr(self.history, 'show_thinking') and callable(getattr(self.history, 'show_thinking')):
-            self.history.show_thinking("⏳ Thinking…")
-        else:
-            self.history.append("<p><i>⏳ Thinking…</i></p>")
+        self.history.show_thinking("⏳ Thinking…")
 
         # ---- persona + topic prompt shaping ----
         topic = self.topic_combo.currentText().lstrip("• ").lstrip("🌐 ").strip()
@@ -1210,32 +1180,44 @@ class MainWindow(QtWidgets.QMainWindow):
         threading.Thread(target=worker, daemon=True).start()
 
     def _append_user_with_grammar(self, text: str):
-        """FIXED: Properly check grammar and display errors"""
+        """
+        FIXED: Display user message with grammar checking.
+        ALWAYS shows user message, even if grammar checking fails.
+        """
         checker = getattr(self.engine, "check_grammar", None)
+
+        # If no grammar checker, just show plain text using VocabBrowser
         if not callable(checker):
-            # No grammar checker available, just show plain text
-            self._append_user(text)
+            self.history.append_user(text)
             return
 
         try:
             # Call grammar checker
             result = checker(text)
 
-            # Validate result format
-            if not isinstance(result, dict):
-                self._append_user(text)
+            # Validate result
+            if not isinstance(result, dict) or not result:
+                self.history.append_user(text)
+                return
+
+            # Check for errors in the result
+            if "error" in result:
+                # Grammar check had an error, show plain text
+                self.history.append_user(text)
                 return
 
         except Exception as e:
             # Grammar check failed, show plain text
-            self._append_user(text)
             print(f"Grammar check error: {e}")
+            self.history.append_user(text)
             return
 
         # Build HTML with error highlighting
         html = self._build_grammar_html(result)
-        if not html:
-            self._append_user(text)
+
+        # If HTML building failed, fall back to plain text
+        if not html or html == "":
+            self.history.append_user(text)
             return
 
         # Display user message with grammar highlights
@@ -1518,11 +1500,8 @@ Top problematic words/phrases: {top_words}
             )
             return
 
-        # placeholder
-        if hasattr(self.history, 'show_thinking') and callable(getattr(self.history, 'show_thinking')):
-            self.history.show_thinking("⏳ Thinking…")
-        else:
-            self.history.append("<p><i>⏳ Thinking…</i></p>")
+        # Show thinking indicator
+        self.history.show_thinking("⏳ Thinking…")
 
         def worker():
             try:
@@ -1537,11 +1516,6 @@ Top problematic words/phrases: {top_words}
     # =============================================================
     #  UI helpers & vocab
     # =============================================================
-    def _append_user(self, text):
-        """Display user message in chat history"""
-        safe = self._escape_html(text)
-        self.history.append(f"<p><b>You:</b><br>{safe}</p>")
-
     def _append_bot(self, text: str):
         """Append bot message with vocab highlighting support"""
         known = set()
@@ -1556,31 +1530,15 @@ Top problematic words/phrases: {top_words}
         if is_summary:
             formatted = text
         else:
-            formatted = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", text).replace("\n", "<br>")
+            formatted = text  # VocabBrowser handles markdown conversion
 
-        plain = self.history.toPlainText().strip()
-        if plain.endswith("Thinking…") or plain.endswith("⏳ Thinking…"):
-            cursor = self.history.textCursor()
-            cursor.movePosition(QtGui.QTextCursor.End)
-            cursor.select(QtGui.QTextCursor.BlockUnderCursor)
-            cursor.removeSelectedText()
-            cursor.deletePreviousChar()
-
-        if is_summary:
-            html = f"<div class='summary-wrapper'><p><b>Tutor:</b></p>{formatted}</div>"
-            self.history.append(html)
-        else:
-            # Try to use VocabBrowser's append_bot if available
-            if hasattr(self.history, 'append_bot') and callable(getattr(self.history, 'append_bot')):
-                self.history.append_bot(formatted, new_words)
-            else:
-                # Fallback to simple append
-                self.history.append(f"<p><b>Tutor:</b><br>{formatted}</p>")
+        # Use VocabBrowser's append_bot method
+        self.history.append_bot(formatted, new_words)
 
     def _append_bot_simple(self, text: str):
         """Simple bot message without vocab highlighting (used for system messages)"""
-        formatted = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", text).replace("\n", "<br>")
-        self.history.append(f"<p><b>Tutor:</b><br>{formatted}</p>")
+        # Use VocabBrowser's append_bot with empty new_words list
+        self.history.append_bot(text, [])
 
     def _on_vocab_word_activated(self, word: str, context: str):
         def worker():
@@ -1624,8 +1582,7 @@ Top problematic words/phrases: {top_words}
             msg.exec()
 
     def _on_vocab_mode_toggled(self, on: bool):
-        if hasattr(self.history, 'set_vocab_mode') and callable(getattr(self.history, 'set_vocab_mode')):
-            self.history.set_vocab_mode(on)
+        self.history.set_vocab_mode(on)
 
     # =============================================================
     #  Event filter (grammar hover tooltips)
@@ -1669,7 +1626,6 @@ def make_round_pixmap(original: QtGui.QPixmap, size: int) -> QtGui.QPixmap:
 #  Stand-alone test
 # =================================================================
 if __name__ == "__main__":
-
     class MockEngine:
         def ask(self, prompt, session_id=None):
             import time
@@ -1693,23 +1649,6 @@ if __name__ == "__main__":
                         }
                     ],
                 }
-            # Simulate other common errors
-            elif "your" in text.lower() and "you're" not in text.lower():
-                # Check if "your" should be "you're"
-                patterns = ["your doing", "your going", "your coming"]
-                for pattern in patterns:
-                    if pattern in text.lower():
-                        idx = text.lower().index(pattern)
-                        return {
-                            "original": text,
-                            "corrected": text[:idx] + "you're" + text[idx+4:],
-                            "errors": [{
-                                "original": "your",
-                                "suggestion": "you're",
-                                "start": idx,
-                                "end": idx + 4,
-                            }],
-                        }
 
             return {"original": text, "corrected": text, "errors": []}
 
