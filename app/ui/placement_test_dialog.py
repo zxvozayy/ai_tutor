@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import List, Dict, Any, Optional
 
-from PySide6 import QtWidgets, QtCore
+from PySide6 import QtWidgets, QtCore, QtGui
 
 from app.services.db_supabase import save_placement_result
 
@@ -15,7 +15,6 @@ LEVELS = ["A1", "A2", "B1", "B2", "C1", "C2"]
 
 # ---------------------------------------------------------------------
 # Question bank (24 items: 4 per level, grammar + vocab + light reading)
-# You can later move this to Supabase / JSON if needed.
 # ---------------------------------------------------------------------
 QUESTIONS: List[Question] = [
     # ----- A1 -----
@@ -229,22 +228,9 @@ QUESTIONS: List[Question] = [
 
 
 # ---------------------------------------------------------------------
-# CEFR estimation logic (simple, similar spirit to many online tests)
+# CEFR estimation logic
 # ---------------------------------------------------------------------
 def estimate_level(per_level: Dict[str, Dict[str, int]]) -> str:
-    """
-    per_level = {
-      'A1': {'correct': x, 'total': y},
-      ...
-    }
-
-    Logic:
-      - compute accuracy per band
-      - find highest level where:
-           accuracy(level) >= 0.6
-        and all lower levels >= 0.5
-      - if none, fall back stepwise.
-    """
     ratio = {
         lvl: (
                 per_level.get(lvl, {}).get("correct", 0)
@@ -256,28 +242,21 @@ def estimate_level(per_level: Dict[str, Dict[str, int]]) -> str:
     def ok(l: str, thr: float) -> bool:
         return ratio[l] >= thr
 
-    # climb ladder cautiously
-    # 1) if A2 is weak -> A1
     if not ok("A2", 0.5):
         return "A1"
 
-    # 2) A1+A2 okay but B1 weak -> A2
     if ok("A1", 0.5) and ok("A2", 0.6) and not ok("B1", 0.5):
         return "A2"
 
-    # 3) up to B1 strong, B2 weak
     if ok("B1", 0.6) and not ok("B2", 0.5):
         return "B1"
 
-    # 4) up to B2 strong, C1 weak
     if ok("B2", 0.6) and not ok("C1", 0.5):
         return "B2"
 
-    # 5) up to C1 strong, C2 weak
     if ok("C1", 0.6) and not ok("C2", 0.5):
         return "C1"
 
-    # 6) otherwise C2 (strong everywhere)
     return "C2"
 
 
@@ -286,7 +265,7 @@ def estimate_level(per_level: Dict[str, Dict[str, int]]) -> str:
 # ---------------------------------------------------------------------
 class PlacementTestDialog(QtWidgets.QDialog):
     """
-    CEFR placement test dialog (A1–C2, ~5–8 minutes).
+    CEFR placement test dialog (A1–C2).
     Usage:
         dlg = PlacementTestDialog(parent)
         level = dlg.exec_and_get_level()
@@ -298,24 +277,110 @@ class PlacementTestDialog(QtWidgets.QDialog):
         self.resize(720, 440)
         self.setModal(True)
 
+        # ---- FORCE LIGHT THEME (independent of OS dark mode) ----
+        # This prevents "transparent backgrounds" + OS dark theme from turning the dialog black.
+        self.setAutoFillBackground(True)
+        self.setAttribute(QtCore.Qt.WA_StyledBackground, True)
+
+        pal = self.palette()
+        pal.setColor(QtGui.QPalette.Window, QtGui.QColor("#FFFFFF"))
+        pal.setColor(QtGui.QPalette.Base, QtGui.QColor("#FFFFFF"))
+        pal.setColor(QtGui.QPalette.AlternateBase, QtGui.QColor("#FFFFFF"))
+        pal.setColor(QtGui.QPalette.WindowText, QtGui.QColor("#184e77"))
+        pal.setColor(QtGui.QPalette.Text, QtGui.QColor("#184e77"))
+        pal.setColor(QtGui.QPalette.Button, QtGui.QColor("#FFFFFF"))
+        pal.setColor(QtGui.QPalette.ButtonText, QtGui.QColor("#184e77"))
+        self.setPalette(pal)
+
+        # Local QSS (keeps it white even if app-level QSS says QWidget { background: transparent; })
+        self.setStyleSheet("""
+            QDialog {
+                background-color: #FFFFFF;
+                color: #184e77;
+            }
+            QLabel {
+                background: transparent;
+                color: #184e77;
+            }
+            QGroupBox {
+                background-color: #FFFFFF;
+                border: 1px solid #b5e48c;
+                border-radius: 14px;
+                margin-top: 10px;
+                padding: 12px;
+                color: #184e77;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 12px;
+                padding: 0 6px;
+                color: #184e77;
+                font-weight: 600;
+            }
+            QRadioButton {
+                background: transparent;
+                color: #184e77;
+                spacing: 10px;
+                padding: 6px 2px;
+            }
+            QRadioButton::indicator {
+                width: 16px;
+                height: 16px;
+                border-radius: 8px;
+                border: 2px solid #52b69a;
+                background: #FFFFFF;
+            }
+            QRadioButton::indicator:checked {
+                background: #52b69a;
+                border: 2px solid #168aad;
+            }
+            QProgressBar {
+                background: #FFFFFF;
+                border: 1px solid #b5e48c;
+                border-radius: 10px;
+                text-align: center;
+                height: 14px;
+                color: #184e77;
+            }
+            QProgressBar::chunk {
+                background: #52b69a;
+                border-radius: 10px;
+            }
+            QPushButton {
+                background: #FFFFFF;
+                border: 1px solid #b5e48c;
+                border-radius: 12px;
+                padding: 8px 14px;
+                color: #184e77;
+            }
+            QPushButton:hover {
+                border: 1px solid #168aad;
+            }
+            QPushButton:pressed {
+                background: #d9ed92;
+            }
+            QPushButton:disabled {
+                color: #999999;
+                border-color: #dddddd;
+                background: #f7f7f7;
+            }
+        """)
+
         self._questions: List[Question] = QUESTIONS
         self._index: int = 0
-        self._answers: Dict[int, int] = {}  # question_id -> chosen option index
+        self._answers: Dict[int, int] = {}
         self._estimated_level: Optional[str] = None
 
         self._build_ui()
         self._refresh_ui()
 
     # ---------- public helper ----------
-
     def exec_and_get_level(self) -> Optional[str]:
-        """Run dialog; return CEFR level string or None if cancelled."""
         if self.exec() == QtWidgets.QDialog.Accepted:
             return self._estimated_level
         return None
 
     # ---------- UI build ----------
-
     def _build_ui(self):
         layout = QtWidgets.QVBoxLayout(self)
 
@@ -369,7 +434,6 @@ class PlacementTestDialog(QtWidgets.QDialog):
         self.finish_btn.clicked.connect(self._finish)
 
     # ---------- navigation ----------
-
     def _refresh_ui(self):
         q = self._questions[self._index]
         total = len(self._questions)
@@ -426,7 +490,6 @@ class PlacementTestDialog(QtWidgets.QDialog):
     def _finish(self):
         self._save_current_answer()
 
-        # compute per-level stats
         per_level: Dict[str, Dict[str, int]] = {}
         total_correct = 0
         for q in self._questions:
@@ -441,7 +504,6 @@ class PlacementTestDialog(QtWidgets.QDialog):
         level = estimate_level(per_level)
         self._estimated_level = level
 
-        # pack answers for analytics
         answers_blob: Dict[str, Any] = {}
         for q in self._questions:
             answers_blob[str(q["id"])] = {
@@ -473,10 +535,8 @@ class PlacementTestDialog(QtWidgets.QDialog):
         self.accept()
 
 
-# Optional: local test run
 if __name__ == "__main__":
     import sys
-    from PySide6 import QtWidgets
 
     app = QtWidgets.QApplication(sys.argv)
     dlg = PlacementTestDialog()

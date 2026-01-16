@@ -292,6 +292,73 @@ QRadioButton::indicator:disabled {
     border: 2px solid #cccccc;
     background: #f2f2f2;
 }
+
+/* ===== Fix: dialogs & popups not black ===== */
+QDialog, QMessageBox, QMenu, QToolTip {
+    background: #FFFFFF;
+    color: #184e77;
+}
+
+QDialog QWidget, QMessageBox QWidget {
+    background: #FFFFFF;
+}
+
+/* Optional: dialogs inside a "card" look */
+QDialog {
+    border: 1px solid #b5e48c;
+    border-radius: 14px;
+}
+
+/* If you use QTextBrowser/QTextEdit in dialogs */
+QTextBrowser, QTextEdit {
+    background: #FFFFFF;
+    color: #184e77;
+    border: 1px solid #b5e48c;
+    border-radius: 12px;
+}
+
+/* Sometimes QFrame in dialogs is also transparent */
+QDialog QFrame {
+    background: #FFFFFF;
+}
+/* ===== Force dialogs/popups to be white (independent of OS dark mode) ===== */
+QDialog, QMessageBox, QMenu, QToolTip, QInputDialog {
+    background-color: #FFFFFF;
+    color: #184e77;
+}
+
+QDialog QWidget, QMessageBox QWidget, QInputDialog QWidget {
+    background-color: #FFFFFF;
+    color: #184e77;
+}
+
+QDialog QFrame, QMessageBox QFrame, QInputDialog QFrame {
+    background-color: #FFFFFF;
+}
+
+/* Make common dialog controls white */
+QDialog QLabel, QMessageBox QLabel, QInputDialog QLabel {
+    background: transparent;
+    color: #184e77;
+}
+
+QDialog QPushButton, QMessageBox QPushButton, QInputDialog QPushButton {
+    background: #FFFFFF;
+    border: 1px solid #b5e48c;
+    border-radius: 12px;
+    padding: 8px 12px;
+}
+
+QDialog QLineEdit, QInputDialog QLineEdit {
+    background: #FFFFFF;
+    border: 1px solid #b5e48c;
+    border-radius: 12px;
+    padding: 8px 10px;
+}
+
+
+
+
         """)
 
 
@@ -435,15 +502,15 @@ QRadioButton::indicator:disabled {
         self.lang_combo.addItems(["Auto (TR+EN)", "Türkçe (tr-TR)", "English (en-US)"])
         self.lang_combo.setCurrentIndex(2)
         self.lang_combo.setToolTip("Speech recognition language mode")
+        # Add these lines to set fixed size and remove extra padding:
         self.lang_combo.setFixedHeight(44)  # Match the height of other buttons
-        self.lang_combo.setFixedWidth(140)
+        self.lang_combo.setFixedWidth(140)  # Set a consistent width
         self.lang_combo.setStyleSheet("""
             QComboBox {
                 padding: 0px 10px;
                 margin: 0px;
             }
         """)
-
 
         self.status = QtWidgets.QLabel("")
         self.status.setStyleSheet("color:#34a0a4; font-size:12px;")
