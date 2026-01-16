@@ -435,6 +435,15 @@ QRadioButton::indicator:disabled {
         self.lang_combo.addItems(["Auto (TR+EN)", "Türkçe (tr-TR)", "English (en-US)"])
         self.lang_combo.setCurrentIndex(2)
         self.lang_combo.setToolTip("Speech recognition language mode")
+        self.lang_combo.setFixedHeight(44)  # Match the height of other buttons
+        self.lang_combo.setFixedWidth(140)
+        self.lang_combo.setStyleSheet("""
+            QComboBox {
+                padding: 0px 10px;
+                margin: 0px;
+            }
+        """)
+
 
         self.status = QtWidgets.QLabel("")
         self.status.setStyleSheet("color:#34a0a4; font-size:12px;")
