@@ -573,6 +573,29 @@ QComboBox QAbstractItemView::item:selected {
         top_bar.addWidget(self.persona_combo, 1)
         top_bar.addStretch(1)
 
+        # ===== Summary Report Button (moved to topbar) =====
+        self.summary_btn = QtWidgets.QPushButton("📊 Summary")
+        self.summary_btn.setToolTip("Generate performance summary and next lesson topic")
+        self.summary_btn.clicked.connect(self._on_summary_clicked)
+        self.summary_btn.setFixedHeight(44)
+        self.summary_btn.setStyleSheet("""
+            QPushButton {
+                background: #fff3e0;
+                border: 2px solid #ff9800;
+                border-radius: 12px;
+                padding: 6px 14px;
+                font-weight: 600;
+                font-size: 14px;
+                color: #e65100;
+            }
+            QPushButton:hover {
+                background: #ffe0b2;
+                border: 2px solid #f57c00;
+            }
+        """)
+        top_bar.addWidget(self.summary_btn)
+        top_bar.addSpacing(10)
+
         # ===== CEFR Level Indicator =====
         self.level_indicator = self._create_level_indicator()
         top_bar.addWidget(self.level_indicator)
@@ -615,15 +638,6 @@ QComboBox QAbstractItemView::item:selected {
         input_l.addWidget(self.lang_combo, 0)
         chat_v.addWidget(input_frame)
         chat_v.addWidget(self.status, 0)
-
-        # ✨ Summary report button
-        summary_row = QtWidgets.QHBoxLayout()
-        summary_row.addStretch(1)
-        self.summary_btn = QtWidgets.QPushButton("See summary report")
-        self.summary_btn.setToolTip("Generate performance summary and next lesson topic")
-        self.summary_btn.clicked.connect(self._on_summary_clicked)
-        summary_row.addWidget(self.summary_btn)
-        chat_v.addLayout(summary_row)
 
         listen_page = ListeningPracticeWidget()
         reading_page = ReadingPracticeWidget()
@@ -722,15 +736,15 @@ QComboBox QAbstractItemView::item:selected {
                 background: {bg_color};
                 border: 2px solid {text_color};
                 border-radius: 12px;
-                padding: 4px 8px;
             }}
             #LevelBadge:hover {{
                 background: {text_color}22;
             }}
         """)
+        container.setFixedHeight(44)
 
         layout = QtWidgets.QHBoxLayout(container)
-        layout.setContentsMargins(10, 6, 10, 6)
+        layout.setContentsMargins(12, 4, 12, 4)
         layout.setSpacing(6)
 
         # Level icon
@@ -882,7 +896,6 @@ QComboBox QAbstractItemView::item:selected {
                 background: {bg_color};
                 border: 2px solid {text_color};
                 border-radius: 12px;
-                padding: 4px 8px;
             }}
             #LevelBadge:hover {{
                 background: {text_color}22;
