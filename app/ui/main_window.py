@@ -268,7 +268,30 @@ QComboBox QAbstractItemView::item:selected {
     color: #184e77;
     font-weight: 600;
 }
+/* =/* ===== RadioButton (Reading options) ===== */
+QRadioButton {
+    background: transparent;
+    spacing: 10;
+    color: #184e77;
+}
 
+QRadioButton::indicator {
+    width: 16px;
+    height: 16px;
+    border-radius: 8px;
+    border: 2px solid #52b69a;
+    background: #FFFFFF;
+}
+
+QRadioButton::indicator:checked {
+    background: #52b69a;
+    border: 2px solid #168aad;
+}
+
+QRadioButton::indicator:disabled {
+    border: 2px solid #cccccc;
+    background: #f2f2f2;
+}
         """)
 
 
