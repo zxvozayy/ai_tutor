@@ -220,6 +220,20 @@ def upsert_cefr_level(level: str) -> Dict[str, Any]:
     return res.data[0] if res.data else row
 
 
+def update_profile_level(level: str) -> None:
+    """Update user's CEFR level in their profile (used by manual level setting)."""
+    uid = current_user_id()
+    if not uid:
+        raise RuntimeError("Not authenticated")
+
+    if level not in ("A1", "A2", "B1", "B2", "C1", "C2"):
+        raise ValueError(f"Invalid CEFR level: {level}")
+
+    # Use upsert to handle both insert and update cases
+    row = {"id": uid, "cefr_level": level}
+    sb.table("profiles").upsert(row, on_conflict="id").execute()
+
+
 def save_placement_result(
         estimated_level: str,
         total_correct: int,

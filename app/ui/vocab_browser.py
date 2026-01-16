@@ -179,8 +179,8 @@ class MessageBubble(QtWidgets.QFrame):
                 QtWidgets.QToolTip.hideText()
         return super().eventFilter(obj, event)
 
-        def _plain_text_for_measure(self) -> str:
-            """Best-effort plain text for measuring bubble width."""
+    def _plain_text_for_measure(self) -> str:
+        """Best-effort plain text for measuring bubble width."""
         doc = self.content_label.document()
         t = doc.toPlainText()
         t = t.replace("\u2029", "\n")
@@ -213,6 +213,7 @@ class MessageBubble(QtWidgets.QFrame):
         inner_w = max(200, bubble_w - side_padding)
         self.setFixedWidth(bubble_w)
         self.set_text_width(inner_w)
+
 
 class ThinkingBubble(QtWidgets.QFrame):
     def __init__(self, text: str = "⏳ Thinking…", icon_path: str = "", parent=None):
@@ -354,47 +355,109 @@ class VocabBrowser(QtWidgets.QScrollArea):
         return safe
 
     def _format_with_grammar_errors(self, text: str, errors: list) -> str:
+        """
+        Format text with grammar error highlights.
+
+        CRITICAL FIX: Instead of trusting backend's start/end indices (which may be
+        byte offsets or just wrong), we find each error token in the text ourselves.
+        """
         if not errors:
             return self._format_text(text, apply_vocab=False)
 
-        try:
-            sorted_errors = sorted(errors, key=lambda e: int(e.get("start", 0)))
-        except Exception:
-            sorted_errors = errors
+        import urllib.parse
 
+        n = len(text)
+        text_lower = text.lower()
+
+        # Build a list of (start, end, suggestion) tuples by finding tokens ourselves
+        highlights = []
+        cursor = 0  # Track where we've already matched (handles repeated words)
+
+        for err in errors:
+            if not isinstance(err, dict):
+                continue
+
+            # Get the original token that has the error
+            token = (err.get("original") or "").strip()
+            suggestion = err.get("suggestion") or ""
+
+            if not token:
+                # If no token provided, try to use start/end as fallback
+                try:
+                    start = int(err.get("start", -1))
+                    end = int(err.get("end", -1))
+                    if 0 <= start < end <= n:
+                        token = text[start:end]
+                except (TypeError, ValueError):
+                    continue
+
+            if not token:
+                continue
+
+            # Find this token in the text (case-insensitive), starting from cursor
+            token_lower = token.lower()
+            idx = text_lower.find(token_lower, cursor)
+
+            if idx == -1:
+                # Try from beginning if not found after cursor
+                idx = text_lower.find(token_lower)
+
+            if idx != -1:
+                # Use actual text (preserves original case)
+                actual_token = text[idx:idx + len(token)]
+                highlights.append({
+                    "start": idx,
+                    "end": idx + len(token),
+                    "token": actual_token,
+                    "suggestion": suggestion
+                })
+                cursor = idx + len(token)
+
+        if not highlights:
+            return self._format_text(text, apply_vocab=False)
+
+        # Sort by start position and remove overlaps
+        highlights.sort(key=lambda x: x["start"])
+
+        # Remove overlapping highlights (keep first one)
+        filtered = []
+        last_end = 0
+        for h in highlights:
+            if h["start"] >= last_end:
+                filtered.append(h)
+                last_end = h["end"]
+
+        # Build HTML
         parts = []
         pos = 0
-        n = len(text)
 
-        for err in sorted_errors:
-            try:
-                start = int(err.get("start", 0))
-                end = int(err.get("end", start))
-                suggestion = err.get("suggestion", "")
-            except Exception:
-                continue
+        for h in filtered:
+            start = h["start"]
+            end = h["end"]
+            token = h["token"]
+            suggestion = h["suggestion"]
 
-            if start < 0 or end > n or start >= end or start < pos:
-                continue
-
+            # Add text before this highlight
             if pos < start:
                 parts.append(self._escape_html(text[pos:start]))
 
-            wrong = self._escape_html(text[start:end])
-
-            import urllib.parse
+            # Add highlighted token
             href = "grammar://" + urllib.parse.quote(suggestion or "")
+            escaped_token = self._escape_html(token)
 
             parts.append(
                 f'<a href="{href}" style="color: #c9a227; text-decoration: underline; '
-                f'text-decoration-color: #c9a227; text-decoration-style: wavy;">{wrong}</a>'
+                f'text-decoration-color: #c9a227; text-decoration-style: wavy;">{escaped_token}</a>'
             )
             pos = end
 
+        # Add remaining text
         if pos < n:
             parts.append(self._escape_html(text[pos:]))
 
-        return "".join(parts).replace("\n", "<br>")
+        result = "".join(parts)
+        result = result.replace("\n", "<br>")
+        return result
 
     # -------- building bubbles --------
     def _create_bubble(self, msg: dict) -> QtWidgets.QWidget:

@@ -29,6 +29,7 @@ from app.services.db_supabase import (
     current_user_id,
     get_current_profile,
     get_recent_learning_events,
+    update_profile_level,
 )
 
 # Azure STT
@@ -555,7 +556,7 @@ QComboBox QAbstractItemView::item:selected {
         else:
             self.ai_avatar_label.setText("AI")
 
-        # Top bar: avatar + topic + persona
+        # Top bar: avatar + topic + persona + level indicator
         top_bar = QtWidgets.QHBoxLayout()
         top_bar.addWidget(self.ai_avatar_label)
         top_bar.addSpacing(8)
@@ -571,6 +572,10 @@ QComboBox QAbstractItemView::item:selected {
         top_bar.addWidget(lbl_persona)
         top_bar.addWidget(self.persona_combo, 1)
         top_bar.addStretch(1)
+
+        # ===== CEFR Level Indicator =====
+        self.level_indicator = self._create_level_indicator()
+        top_bar.addWidget(self.level_indicator)
 
         # --- Topbar Card ---
         topbar_frame = QtWidgets.QFrame()
@@ -685,6 +690,207 @@ QComboBox QAbstractItemView::item:selected {
 
         # After sessions are ready, run placement test if needed
         QtCore.QTimer.singleShot(800, lambda: run_placement_test_if_needed(self))
+
+    # =============================================================
+    #  CEFR Level Indicator
+    # =============================================================
+    def _create_level_indicator(self) -> QtWidgets.QWidget:
+        """Create the CEFR level badge widget for topbar."""
+        container = QtWidgets.QFrame()
+        container.setObjectName("LevelBadge")
+        container.setCursor(QtCore.Qt.PointingHandCursor)
+
+        # Get current level
+        level = self._get_current_level()
+
+        # Color scheme based on level
+        level_colors = {
+            "A1": ("#e8f5e9", "#4caf50", "Beginner"),
+            "A2": ("#e3f2fd", "#2196f3", "Elementary"),
+            "B1": ("#fff3e0", "#ff9800", "Intermediate"),
+            "B2": ("#fce4ec", "#e91e63", "Upper-Intermediate"),
+            "C1": ("#f3e5f5", "#9c27b0", "Advanced"),
+            "C2": ("#efebe9", "#795548", "Proficient"),
+        }
+
+        bg_color, text_color, level_name = level_colors.get(
+            level, ("#f5f5f5", "#757575", "Not Set")
+        )
+
+        container.setStyleSheet(f"""
+            #LevelBadge {{
+                background: {bg_color};
+                border: 2px solid {text_color};
+                border-radius: 12px;
+                padding: 4px 8px;
+            }}
+            #LevelBadge:hover {{
+                background: {text_color}22;
+            }}
+        """)
+
+        layout = QtWidgets.QHBoxLayout(container)
+        layout.setContentsMargins(10, 6, 10, 6)
+        layout.setSpacing(6)
+
+        # Level icon
+        icon_label = QtWidgets.QLabel("📊")
+        icon_label.setStyleSheet("background: transparent; font-size: 14px;")
+        layout.addWidget(icon_label)
+
+        # Level text
+        if level:
+            level_text = f"<b style='color:{text_color};'>{level}</b>"
+            sublabel = f"<span style='color:#666; font-size:11px;'>{level_name}</span>"
+        else:
+            level_text = "<b style='color:#757575;'>—</b>"
+            sublabel = "<span style='color:#999; font-size:11px;'>Take test</span>"
+
+        text_container = QtWidgets.QVBoxLayout()
+        text_container.setContentsMargins(0, 0, 0, 0)
+        text_container.setSpacing(0)
+
+        main_label = QtWidgets.QLabel(level_text)
+        main_label.setStyleSheet("background: transparent; font-size: 15px;")
+        main_label.setAlignment(QtCore.Qt.AlignCenter)
+
+        sub_label = QtWidgets.QLabel(sublabel)
+        sub_label.setStyleSheet("background: transparent;")
+        sub_label.setAlignment(QtCore.Qt.AlignCenter)
+
+        text_container.addWidget(main_label)
+        text_container.addWidget(sub_label)
+        layout.addLayout(text_container)
+
+        # Make clickable
+        container.mousePressEvent = lambda e: self._on_level_clicked()
+
+        # Store reference for updates
+        self._level_badge_container = container
+        self._level_main_label = main_label
+        self._level_sub_label = sub_label
+
+        return container
+
+    def _get_current_level(self) -> str | None:
+        """Get user's current CEFR level from profile."""
+        try:
+            profile = get_current_profile()
+            if profile:
+                return profile.get("cefr_level")
+        except Exception:
+            pass
+        return None
+
+    def _on_level_clicked(self):
+        """Handle click on level indicator - show options menu."""
+        current = self._get_current_level()
+
+        menu = QtWidgets.QMenu(self)
+        menu.setStyleSheet("""
+            QMenu {
+                background: #ffffff;
+                border: 1px solid #b5e48c;
+                border-radius: 8px;
+                padding: 6px;
+            }
+            QMenu::item {
+                padding: 8px 16px;
+                border-radius: 6px;
+                color: #184e77;
+            }
+            QMenu::item:selected {
+                background: #d9ed92;
+            }
+            QMenu::item:disabled {
+                color: #999;
+            }
+            QMenu::separator {
+                height: 1px;
+                background: #b5e48c;
+                margin: 4px 8px;
+            }
+        """)
+
+        # Current level info
+        if current:
+            info_action = menu.addAction(f"📊 Current Level: {current}")
+            info_action.setEnabled(False)
+            menu.addSeparator()
+
+        # Retake test option
+        retake_action = menu.addAction("🎯 Take Placement Test")
+        retake_action.triggered.connect(self._retake_placement_test)
+
+        # Manual level selection
+        manual_menu = menu.addMenu("✏️ Set Level Manually")
+        for level in ["A1", "A2", "B1", "B2", "C1", "C2"]:
+            action = manual_menu.addAction(level)
+            action.triggered.connect(lambda checked, l=level: self._set_level_manually(l))
+
+        # Show menu at badge position
+        menu.exec(self.level_indicator.mapToGlobal(
+            QtCore.QPoint(0, self.level_indicator.height())
+        ))
+
+    def _retake_placement_test(self):
+        """Open placement test dialog."""
+        dlg = PlacementTestDialog(self)
+        level = dlg.exec_and_get_level()
+        if level:
+            self._update_level_display(level)
+            QtWidgets.QMessageBox.information(
+                self,
+                "Level Updated",
+                f"Your level has been set to <b>{level}</b>.",
+            )
+
+    def _set_level_manually(self, level: str):
+        """Manually set CEFR level without taking test."""
+        try:
+            update_profile_level(level)
+            self._update_level_display(level)
+            QtWidgets.QMessageBox.information(
+                self,
+                "Level Set",
+                f"Your level has been manually set to <b>{level}</b>.",
+            )
+        except Exception as e:
+            QtWidgets.QMessageBox.warning(
+                self,
+                "Error",
+                f"Could not update level: {e}",
+            )
+
+    def _update_level_display(self, level: str):
+        """Update the level indicator badge with new level."""
+        level_colors = {
+            "A1": ("#e8f5e9", "#4caf50", "Beginner"),
+            "A2": ("#e3f2fd", "#2196f3", "Elementary"),
+            "B1": ("#fff3e0", "#ff9800", "Intermediate"),
+            "B2": ("#fce4ec", "#e91e63", "Upper-Intermediate"),
+            "C1": ("#f3e5f5", "#9c27b0", "Advanced"),
+            "C2": ("#efebe9", "#795548", "Proficient"),
+        }
+
+        bg_color, text_color, level_name = level_colors.get(
+            level, ("#f5f5f5", "#757575", "Not Set")
+        )
+
+        self._level_badge_container.setStyleSheet(f"""
+            #LevelBadge {{
+                background: {bg_color};
+                border: 2px solid {text_color};
+                border-radius: 12px;
+                padding: 4px 8px;
+            }}
+            #LevelBadge:hover {{
+                background: {text_color}22;
+            }}
+        """)
+
+        self._level_main_label.setText(f"<b style='color:{text_color};'>{level}</b>")
+        self._level_sub_label.setText(f"<span style='color:#666; font-size:11px;'>{level_name}</span>")
 
     # =============================================================
     #  Sidebar Toggle
@@ -1324,7 +1530,7 @@ QComboBox QAbstractItemView::item:selected {
         )
 
     def _build_grammar_html(self, result: dict) -> str:
-    
+
         import urllib.parse
 
         original = (result.get("original") or "")
@@ -1540,7 +1746,7 @@ QComboBox QAbstractItemView::item:selected {
         threading.Thread(target=worker, daemon=True).start()
 
     def _append_user_with_grammar(self, text: str):
-    
+
         checker = getattr(self.engine, "check_grammar", None)
 
         def _normalize_for_grammar(s: str) -> str:
