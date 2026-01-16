@@ -71,7 +71,7 @@ QUESTIONS: List[Question] = [
     },
     {
         "id": 7,
-        "text": "Choose the best option: \"I’m tired. Let’s ___ a break.\"",
+        "text": "Choose the best option: \"I'm tired. Let's ___ a break.\"",
         "options": ["make", "do", "take"],
         "correct_index": 2,
         "level": "A2",
@@ -319,9 +319,9 @@ class PlacementTestDialog(QtWidgets.QDialog):
     def _build_ui(self):
         layout = QtWidgets.QVBoxLayout(self)
 
-        title = QtWidgets.QLabel("Let’s quickly estimate your English level.")
+        title = QtWidgets.QLabel("Let's quickly estimate your English level.")
         title.setAlignment(QtCore.Qt.AlignCenter)
-        title.setStyleSheet("font-size:18px; font-weight:600;")
+        title.setStyleSheet("font-size:18px; font-weight:600; color:#184e77;")
         layout.addWidget(title)
 
         subtitle = QtWidgets.QLabel(
@@ -329,7 +329,7 @@ class PlacementTestDialog(QtWidgets.QDialog):
             "There is no time limit. Just choose the best option."
         )
         subtitle.setAlignment(QtCore.Qt.AlignCenter)
-        subtitle.setStyleSheet("color:#bdc3c7;")
+        subtitle.setStyleSheet("color:#34a0a4;")
         layout.addWidget(subtitle)
 
         self.progress_label = QtWidgets.QLabel()
@@ -341,7 +341,7 @@ class PlacementTestDialog(QtWidgets.QDialog):
 
         self.question_label = QtWidgets.QLabel()
         self.question_label.setWordWrap(True)
-        self.question_label.setStyleSheet("font-size:15px; margin-top:8px;")
+        self.question_label.setStyleSheet("font-size:15px; margin-top:8px; color:#184e77;")
         layout.addWidget(self.question_label)
 
         self.options_group = QtWidgets.QButtonGroup(self)

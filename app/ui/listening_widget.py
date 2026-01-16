@@ -160,7 +160,7 @@ class ListeningPracticeWidget(QtWidgets.QWidget):
 
             # --- Question title ---
             label = QtWidgets.QLabel(f"Q{idx+1}. {q['text']}")
-            label.setStyleSheet("font-size: 15px; padding-bottom: 4px;")
+            label.setStyleSheet("font-size: 15px; padding-bottom: 4px; color: #184e77;")
             frame_layout.addWidget(label)
 
             # --- Radio buttons ---
@@ -256,18 +256,17 @@ class ListeningPracticeWidget(QtWidgets.QWidget):
                 correct += 1
                 frame.setStyleSheet("""
                     #highlightFrame {
-                        border: 2px solid #27ae60;
+                        border: 2px solid #99d98c;
                         border-radius: 8px;
                     }
                 """)
             else:
                 frame.setStyleSheet("""
                     #highlightFrame {
-                        border: 2px solid #c0392b;
+                        border: 2px solid #e74c3c;
                         border-radius: 8px;
                     }
                 """)
 
         total = len(self._question_widgets)
         self.result_label.setText(f"Score: {correct}/{total} | Unanswered: {unanswered}")
-

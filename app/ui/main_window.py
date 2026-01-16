@@ -88,116 +88,135 @@ class MainWindow(QtWidgets.QMainWindow):
         self.setWindowTitle("AI Tutor – Chat + Voice (Azure + Gemini)")
         self.resize(1120, 680)
 
-        # ---- Global stylesheet (Pastel Dashboard) ----
+        # ---- Global stylesheet (Nature-inspired Green-Teal-Navy) ----
         self.setStyleSheet("""
 /* ===== Base ===== */
 QWidget {
     font-family: "Segoe UI";
     font-size: 14px;
-    color: #1F2330;
-    background: #F6F7FB;
+    color: #184e77;
+    background: transparent;
+}
+QMainWindow {
+    background: #f0f7f4;
 }
 QMainWindow::separator { background: transparent; }
 
 /* ===== Frames ===== */
 #Sidebar {
     background: #FFFFFF;
-    border-right: 1px solid #E9EAF2;
+    border-right: 1px solid #b5e48c;
 }
 #MainArea {
-    background: #F6F7FB;
+    background: #f0f7f4;
 }
 #Card {
     background: #FFFFFF;
-    border: 1px solid #E9EAF2;
+    border: 1px solid #b5e48c;
     border-radius: 18px;
 }
 #TopbarCard {
     background: #FFFFFF;
-    border: 1px solid #E9EAF2;
+    border: 1px solid #b5e48c;
     border-radius: 18px;
 }
 #InputCard {
     background: #FFFFFF;
-    border: 1px solid #E9EAF2;
+    border: 1px solid #b5e48c;
     border-radius: 18px;
 }
 
+/* ===== QFrame defaults ===== */
+QFrame {
+    background: transparent;
+    border: none;
+}
+
 /* ===== Labels ===== */
+QLabel {
+    background: transparent;
+}
 #SidebarTitle {
     font-size: 16px;
     font-weight: 700;
     background: transparent;
 }
 #MutedText {
-    color: #6B7280;
+    color: #34a0a4;
     background: transparent;
 }
 
 /* ===== Inputs ===== */
 QLineEdit {
     background: #FFFFFF;
-    border: 1px solid #E9EAF2;
+    border: 1px solid #b5e48c;
     border-radius: 14px;
     padding: 10px 12px;
-    selection-background-color: #EDEBFF;
+    selection-background-color: #d9ed92;
 }
 QLineEdit:focus {
-    border: 1px solid #6D5EF6;
+    border: 1px solid #168aad;
 }
 
 /* ===== ComboBox ===== */
 QComboBox {
     background: #FFFFFF;
-    border: 1px solid #E9EAF2;
+    border: 1px solid #b5e48c;
     border-radius: 14px;
     padding: 8px 10px;
     min-height: 38px;
 }
 QComboBox:hover {
-    border: 1px solid #C9C7FF;
+    border: 1px solid #52b69a;
 }
 QComboBox::drop-down { border: none; width: 28px; }
 
 /* ===== List ===== */
 QListWidget {
     background: #FFFFFF;
-    border: 1px solid #E9EAF2;
+    border: 1px solid #b5e48c;
     border-radius: 14px;
     padding: 6px;
 }
 QListWidget::item {
     padding: 10px 10px;
     border-radius: 12px;
+    background: transparent;
 }
 QListWidget::item:hover {
-    background: #F2F3FA;
+    background: #d9ed92;
 }
 QListWidget::item:selected {
-    background: #EDEBFF;
-    color: #3B2FEA;
+    background: #99d98c;
+    color: #184e77;
     font-weight: 600;
 }
 
 /* ===== Buttons ===== */
 QPushButton {
     background: #FFFFFF;
-    border: 1px solid #E9EAF2;
+    border: 1px solid #b5e48c;
     border-radius: 14px;
     padding: 10px 12px;
 }
-QPushButton:hover { border: 1px solid #6D5EF6; }
-QPushButton:pressed { background: #F2F3FA; }
+QPushButton:hover { border: 1px solid #168aad; }
+QPushButton:pressed { background: #d9ed92; }
 QPushButton:checked {
-    background: #EDEBFF;
-    border: 1px solid #C9C7FF;
-    color: #3B2FEA;
+    background: #99d98c;
+    border: 1px solid #52b69a;
+    color: #184e77;
     font-weight: 600;
 }
 
 /* ===== TabWidget ===== */
+QTabWidget {
+    background: transparent;
+}
 QTabWidget::pane {
     border: none;
+    background: transparent;
+}
+QTabBar {
     background: transparent;
 }
 QTabBar::tab {
@@ -205,21 +224,28 @@ QTabBar::tab {
     padding: 10px 14px;
     margin-right: 6px;
     border-radius: 12px;
-    color: #1F2330;
+    color: #184e77;
 }
-QTabBar::tab:hover { background: #F2F3FA; }
+QTabBar::tab:hover { background: #d9ed92; }
 QTabBar::tab:selected {
     background: #FFFFFF;
-    border: 1px solid #E9EAF2;
+    border: 1px solid #b5e48c;
     font-weight: 700;
 }
 
 /* ===== Splitter handle ===== */
-QSplitter::handle { background: #E9EAF2; }
+QSplitter::handle { background: #b5e48c; }
+
+/* ===== ScrollArea ===== */
+QScrollArea {
+    background: transparent;
+    border: none;
+}
+
 /* ===== ComboBox popup (dropdown list) ===== */
 QComboBox QAbstractItemView {
     background: #FFFFFF;
-    border: 1px solid #E9EAF2;
+    border: 1px solid #b5e48c;
     border-radius: 12px;
     padding: 6px;
     outline: 0;
@@ -229,16 +255,16 @@ QComboBox QAbstractItemView::item {
     background: transparent;
     padding: 8px 10px;
     border-radius: 8px;
-    color: #1F2330;
+    color: #184e77;
 }
 
 QComboBox QAbstractItemView::item:hover {
-    background: #F2F3FA;
+    background: #d9ed92;
 }
 
 QComboBox QAbstractItemView::item:selected {
-    background: #EDEBFF;
-    color: #3B2FEA;
+    background: #99d98c;
+    color: #184e77;
     font-weight: 600;
 }
 
@@ -279,24 +305,74 @@ QComboBox QAbstractItemView::item:selected {
         # ===== Left: sessions panel =====
         left = QtWidgets.QFrame()
         left.setObjectName("Sidebar")
+        self.sidebar = left  # Store reference for toggle
+        self.sidebar_expanded = True
+        self.sidebar_width = 280
+
         left_v = QtWidgets.QVBoxLayout(left)
         left_v.setContentsMargins(16, 16, 16, 16)
         left_v.setSpacing(12)
 
+        # Sidebar header with toggle button
+        header_row = QtWidgets.QHBoxLayout()
         header = QtWidgets.QLabel("Chats")
         header.setObjectName("SidebarTitle")
+        self.sidebar_header = header
+
+        self.sidebar_toggle_btn = QtWidgets.QPushButton("◀")
+        self.sidebar_toggle_btn.setObjectName("SidebarToggle")
+        self.sidebar_toggle_btn.setFixedSize(28, 28)
+        self.sidebar_toggle_btn.setToolTip("Collapse sidebar")
+        self.sidebar_toggle_btn.clicked.connect(self._toggle_sidebar)
+        self.sidebar_toggle_btn.setStyleSheet("""
+            QPushButton#SidebarToggle {
+                background: #d9ed92;
+                border: 1px solid #b5e48c;
+                border-radius: 14px;
+                font-size: 12px;
+                font-weight: bold;
+                color: #184e77;
+            }
+            QPushButton#SidebarToggle:hover {
+                background: #99d98c;
+                border: 1px solid #52b69a;
+            }
+        """)
+
+        header_row.addWidget(header)
+        header_row.addStretch()
+        header_row.addWidget(self.sidebar_toggle_btn)
 
         self.session_list = QtWidgets.QListWidget()
         self.session_list.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
         self.session_list.itemSelectionChanged.connect(self._on_session_selected)
 
-        btn_row = QtWidgets.QHBoxLayout()
-        btn_row.setSpacing(10)
+        # Button container widget for easier hide/show
+        self.btn_container = QtWidgets.QWidget()
+        btn_layout = QtWidgets.QVBoxLayout(self.btn_container)
+        btn_layout.setContentsMargins(0, 0, 0, 0)
+        btn_layout.setSpacing(8)
+
+        # First row: New, Rename, Delete
+        btn_row1 = QtWidgets.QHBoxLayout()
+        btn_row1.setSpacing(8)
         self.btn_new = QtWidgets.QPushButton("New")
         self.btn_ren = QtWidgets.QPushButton("Rename")
         self.btn_del = QtWidgets.QPushButton("Delete")
+        btn_row1.addWidget(self.btn_new)
+        btn_row1.addWidget(self.btn_ren)
+        btn_row1.addWidget(self.btn_del)
+
+        # Second row: Save to TXT, Weak Points
+        btn_row2 = QtWidgets.QHBoxLayout()
+        btn_row2.setSpacing(8)
         self.btn_export = QtWidgets.QPushButton("Save to TXT")
         self.btn_weak = QtWidgets.QPushButton("Weak Points")
+        btn_row2.addWidget(self.btn_export)
+        btn_row2.addWidget(self.btn_weak)
+
+        btn_layout.addLayout(btn_row1)
+        btn_layout.addLayout(btn_row2)
 
         self.btn_new.clicked.connect(self._new_chat)
         self.btn_ren.clicked.connect(self._rename_chat)
@@ -304,20 +380,13 @@ QComboBox QAbstractItemView::item:selected {
         self.btn_export.clicked.connect(self._export_chat)
         self.btn_weak.clicked.connect(self._show_weak_points)
 
-        btn_row.addWidget(self.btn_new)
-        btn_row.addWidget(self.btn_ren)
-        btn_row.addWidget(self.btn_del)
-        btn_row.addWidget(self.btn_export)
-        btn_row.addWidget(self.btn_weak)
-
-        left_v.addWidget(header)
+        left_v.addLayout(header_row)
         left_v.addWidget(self.session_list, 1)
-        left_v.addLayout(btn_row)
+        left_v.addWidget(self.btn_container)
 
         # ===== Right: Chat + Listening tabs =====
         # Use VocabBrowser
         self.history = VocabBrowser()
-        self.history.setStyleSheet(self.history_style_sheet())
         self.history.wordActivated.connect(self._on_vocab_word_activated)
         self.vocab_explained_signal.connect(self._show_vocab_explanation)
 
@@ -344,7 +413,7 @@ QComboBox QAbstractItemView::item:selected {
         self.lang_combo.setToolTip("Speech recognition language mode")
 
         self.status = QtWidgets.QLabel("")
-        self.status.setStyleSheet("color:#bdc3c7; font-size:12px;")
+        self.status.setStyleSheet("color:#34a0a4; font-size:12px;")
 
         chat_page = QtWidgets.QWidget()
         chat_v = QtWidgets.QVBoxLayout(chat_page)
@@ -374,14 +443,14 @@ QComboBox QAbstractItemView::item:selected {
             parent_item.setFlags(QtCore.Qt.ItemIsEnabled)
             parent_item.setEditable(False)
             parent_item.setFont(QtGui.QFont("Segoe UI", 10, QtGui.QFont.Bold))
-            parent_item.setForeground(QtGui.QColor("#f6e58d"))
+            parent_item.setForeground(QtGui.QColor("#184e77"))
 
             for topic_name in topics.keys():
                 child = QtGui.QStandardItem(f"• {topic_name}")
                 child.setEditable(False)
                 child.setData(topic_name, QtCore.Qt.UserRole)
                 child.setFont(QtGui.QFont("Segoe UI", 10))
-                child.setForeground(QtGui.QColor("#ecf0f1"))
+                child.setForeground(QtGui.QColor("#184e77"))
                 parent_item.appendRow(child)
 
             self.topic_model.appendRow(parent_item)
@@ -396,8 +465,8 @@ QComboBox QAbstractItemView::item:selected {
         view.setStyleSheet("""
             QTreeView {
                 background: #FFFFFF;
-                color: #1F2330;
-                border: 1px solid #E9EAF2;
+                color: #184e77;
+                border: 1px solid #b5e48c;
                 border-radius: 14px;
                 padding: 6px 8px;
                 outline: none;
@@ -409,17 +478,17 @@ QComboBox QAbstractItemView::item:selected {
                 border-radius: 10px;
             }
             QTreeView::item:hover {
-                background: #F2F3FA;
+                background: #d9ed92;
             }
             QTreeView::item:selected {
-                background: #EDEBFF;
-                color: #3B2FEA;
+                background: #99d98c;
+                color: #184e77;
                 font-weight: 600;
             }
             /* ===== Topic Tree View ===== */
             QTreeView {
                 background: #FFFFFF;
-                border: 1px solid #E9EAF2;
+                border: 1px solid #b5e48c;
                 border-radius: 14px;
                 padding: 6px 8px;
                 outline: none;
@@ -429,16 +498,16 @@ QComboBox QAbstractItemView::item:selected {
                 background: transparent;
                 padding: 6px 8px;
                 border-radius: 10px;
-                color: #1F2330;
+                color: #184e77;
             }
             
             QTreeView::item:hover {
-                background: #F2F3FA;
+                background: #d9ed92;
             }
             
             QTreeView::item:selected {
-                background: #EDEBFF;
-                color: #3B2FEA;
+                background: #99d98c;
+                color: #184e77;
                 font-weight: 600;
             }
 
@@ -492,9 +561,9 @@ QComboBox QAbstractItemView::item:selected {
         top_bar.addSpacing(8)
 
         lbl_topic = QtWidgets.QLabel("🗣️ Topic:")
-        lbl_topic.setStyleSheet("font-weight:700; color:#3B2FEA;")
+        lbl_topic.setStyleSheet("font-weight:700; color:#184e77;")
         lbl_persona = QtWidgets.QLabel("🎭 Persona:")
-        lbl_persona.setStyleSheet("font-weight:700; color:#3B2FEA;")
+        lbl_persona.setStyleSheet("font-weight:700; color:#184e77;")
 
         top_bar.addWidget(lbl_topic)
         top_bar.addWidget(self.topic_combo, 1)
@@ -514,37 +583,18 @@ QComboBox QAbstractItemView::item:selected {
 
         # --- Chat History Card ---
         history_frame = QtWidgets.QFrame()
-        history_frame.setObjectName("Card")
+        history_frame.setObjectName("ChatCard")
+        history_frame.setStyleSheet("""
+            #ChatCard {
+                background: transparent;
+                border: none;
+            }
+        """)
         history_l = QtWidgets.QVBoxLayout(history_frame)
-        history_l.setContentsMargins(14, 14, 14, 14)
+        history_l.setContentsMargins(0, 0, 0, 0)
+        history_l.setSpacing(0)
 
-        # Small header inside the chat card: shows tutor logo next to "Tutor"
-        # (Does not change message logic; purely visual.)
-        tutor_header = QtWidgets.QWidget()
-        tutor_h = QtWidgets.QHBoxLayout(tutor_header)
-        tutor_h.setContentsMargins(0, 0, 0, 8)
-        tutor_h.setSpacing(8)
-
-        tutor_logo = QtWidgets.QLabel()
-        logo_pix = QtGui.QPixmap("app/resources/images/ai_tutor_logo.png")
-        if not logo_pix.isNull():
-            tutor_logo.setFixedSize(22, 22)
-            tutor_logo.setPixmap(
-                make_round_pixmap(logo_pix, 22).scaled(
-                    22, 22, QtCore.Qt.KeepAspectRatio, QtCore.Qt.SmoothTransformation
-                )
-            )
-        else:
-            tutor_logo.setText("AI")
-
-        tutor_title = QtWidgets.QLabel("Tutor")
-        tutor_title.setStyleSheet("font-weight:700; color:#3B2FEA; background:transparent;")
-
-        tutor_h.addWidget(tutor_logo)
-        tutor_h.addWidget(tutor_title)
-        tutor_h.addStretch(1)
-
-        history_l.addWidget(tutor_header)
+        # Add the chat history browser directly (bubbles have their own headers)
         history_l.addWidget(self.history)
         chat_v.addWidget(history_frame, 1)
 
@@ -580,7 +630,7 @@ QComboBox QAbstractItemView::item:selected {
         tabs.addTab(reading_page, "Reading Practice")
         tabs.addTab(self.vocab_page, "My Vocabulary")
 
-        # ===== Split left/right =====
+        # ===== Main layout: sidebar + content =====
         # Main area wrapper (gives padding around tabs like a dashboard)
         main_area = QtWidgets.QWidget()
         main_area.setObjectName("MainArea")
@@ -589,15 +639,18 @@ QComboBox QAbstractItemView::item:selected {
         main_v.setSpacing(12)
         main_v.addWidget(tabs, 1)
 
-        splitter = QtWidgets.QSplitter()
-        splitter.setHandleWidth(2)
-        splitter.addWidget(left)
-        splitter.addWidget(main_area)
-        splitter.setStretchFactor(0, 0)
-        splitter.setStretchFactor(1, 1)
-        splitter.setSizes([280, 840])
+        # Use HBoxLayout instead of splitter for precise control
+        content_layout = QtWidgets.QHBoxLayout()
+        content_layout.setContentsMargins(0, 0, 0, 0)
+        content_layout.setSpacing(0)
 
-        root.addWidget(splitter)
+        # Set initial sidebar width
+        self.sidebar.setFixedWidth(self.sidebar_width)
+
+        content_layout.addWidget(left)
+        content_layout.addWidget(main_area, 1)
+
+        root.addLayout(content_layout)
 
         # ---------- Signals ----------
         self.input.returnPressed.connect(self._on_enter)
@@ -632,6 +685,35 @@ QComboBox QAbstractItemView::item:selected {
 
         # After sessions are ready, run placement test if needed
         QtCore.QTimer.singleShot(800, lambda: run_placement_test_if_needed(self))
+
+    # =============================================================
+    #  Sidebar Toggle
+    # =============================================================
+    def _toggle_sidebar(self):
+        """Toggle sidebar between expanded and collapsed states."""
+        if self.sidebar_expanded:
+            # Collapse sidebar
+            self.sidebar_header.hide()
+            self.session_list.hide()
+            self.btn_container.hide()
+
+            # Set fixed width for collapsed state
+            self.sidebar.setFixedWidth(50)
+            self.sidebar_toggle_btn.setText("▶")
+            self.sidebar_toggle_btn.setToolTip("Expand sidebar")
+            self.sidebar_expanded = False
+        else:
+            # Expand sidebar
+            self.sidebar_header.show()
+            self.session_list.show()
+            self.btn_container.show()
+
+            # Remove fixed width constraint and set back to normal
+            self.sidebar.setMinimumWidth(self.sidebar_width)
+            self.sidebar.setMaximumWidth(self.sidebar_width)
+            self.sidebar_toggle_btn.setText("◀")
+            self.sidebar_toggle_btn.setToolTip("Collapse sidebar")
+            self.sidebar_expanded = True
 
     # =============================================================
     #  Topic handling
@@ -1127,7 +1209,7 @@ QComboBox QAbstractItemView::item:selected {
         layout.addWidget(list_widget)
 
         helper = QtWidgets.QLabel("Double-click a prompt to send it to the chat box.")
-        helper.setStyleSheet("color:#bdc3c7; font-size:11px;")
+        helper.setStyleSheet("color:#34a0a4; font-size:11px;")
         layout.addWidget(helper)
 
         def on_item_activated(item: QtWidgets.QListWidgetItem):
@@ -1203,32 +1285,32 @@ QComboBox QAbstractItemView::item:selected {
     def history_style_sheet(self):
         return """
             QTextBrowser {
-                background-color: #FFFFFF;
-                color: #1F2330;
-                border: 1px solid #E9EAF2;
-                border-radius: 14px;
-                padding: 10px;
+                background: #f8fdf8;
+                color: #184e77;
+                border: 1px solid #b5e48c;
+                border-radius: 18px;
+                padding: 12px;
                 font-family: Segoe UI, Arial, sans-serif;
                 font-size: 14px;
             }
             p { margin: 2px 0 6px 0; line-height: 1.35; }
-            b { color: #3B2FEA; }
-            a { color: #3B82F6; text-decoration: none; }
+            b { color: #184e77; }
+            a { color: #168aad; text-decoration: none; font-weight: 600; }
 
             a.grammar-error {
-                color: #F59E0B;
+                color: #e74c3c;
                 text-decoration: underline wavy;
-                text-decoration-color: #EF4444;
+                text-decoration-color: #e74c3c;
                 text-underline-offset: 2px;
                 cursor: help;
             }
 
             /* Summary report tweaks */
             .summary-report h3.neon-title {
-                color: #3B2FEA;
+                color: #184e77;
                 margin: 6px 0 4px 0;
             }
-            .summary-subhead { color: #6D5EF6; }
+            .summary-subhead { color: #168aad; }
         """
 
     # =============================================================
@@ -1372,64 +1454,46 @@ QComboBox QAbstractItemView::item:selected {
 
     def _append_user_with_grammar(self, text: str):
         """
-        FIXED: Display user message with grammar checking.
-        ALWAYS shows user message, even if grammar checking fails.
+        Display user message with grammar checking and error highlighting.
+        Errors are shown with yellow wavy underline - hover to see correction.
         """
         checker = getattr(self.engine, "check_grammar", None)
+        def _normalize_for_grammar(s: str) -> str:
+        # Keep characters same but normalize newlines and spaces deterministically
+        s = s.replace("\r\n", "\n").replace("\r", "\n")
+        # Do NOT strip() here; it changes indices. Just normalize tabs.
+        s = s.replace("\t", " ")
+        return s
 
-        # If no grammar checker, just show plain text using VocabBrowser
+    # If no grammar checker, just show plain text
         if not callable(checker):
             self.history.append_user(text)
             return
 
         try:
             # Call grammar checker
-            result = checker(text)
+            norm = _normalize_for_grammar(text)
 
-            # Validate result
-            if not isinstance(result, dict) or not result:
-                self.history.append_user(text)
-                return
+            result = checker(norm)
 
-            # Check for errors in the result
-            if "error" in result:
-                # Grammar check had an error, show plain text
-                self.history.append_user(text)
-                return
+            errors = result.get("errors", []) or []
 
-        except Exception as e:
-            # Grammar check failed, show plain text
-            print(f"Grammar check error: {e}")
-            self.history.append_user(text)
-            return
+            # IMPORTANT: display the same normalized string you checked
+            self.history.append_user(norm, grammar_errors=errors)
 
-        # Build HTML with error highlighting
-        html = self._build_grammar_html(result)
-
-        # If HTML building failed, fall back to plain text
-        if not html or html == "":
-            self.history.append_user(text)
-            return
-
-        # Display user message with grammar highlights
-        self.history.append(f"<p><b>You:</b><br>{html}</p>")
-
-        # Store for summary reports
+# Store for summary reports
         self._grammar_events.append({
             "original": result.get("original", text),
             "corrected": result.get("corrected", text),
-            "errors": result.get("errors", []),
+            "errors": errors,
         })
 
-        # Show corrected version if there are errors
-        errors = result.get("errors", [])
+        # Show corrected version if there are errors (as a tutor hint)
         if errors and len(errors) > 0:
             corrected = result.get("corrected", "").strip()
             if corrected and corrected != text:
-                safe = self._escape_html(corrected)
-                self.history.append(
-                    f"<p><i style='color:#2ecc71;'>✅ Correct version:</i> {safe}</p>"
-                )
+                hint = f"✅ Correct version: {corrected}"
+                self.history.append_bot(hint, [])
 
     # =============================================================
     #  STT
@@ -1506,7 +1570,7 @@ QComboBox QAbstractItemView::item:selected {
                 )
             table = "<table style='border-collapse:collapse'>"
             for r in rows:
-                table += f"<tr style='border-bottom:1px solid #555'>{r}</tr>"
+                table += f"<tr style='border-bottom:1px solid #52b69a'>{r}</tr>"
             table += "</table>"
             self.history.append(
                 f"<p><b>Pronunciation (EN):</b><br>{table}</p>"
@@ -1721,6 +1785,9 @@ Top problematic words/phrases: {top_words}
 
         self.history.append_bot(text, new_words)
 
+    def _append_bot_simple(self, text: str):
+        """Append bot message without vocabulary highlighting (for system messages)."""
+        self.history.append_bot(text, [])
 
     def _on_vocab_word_activated(self, word: str, context: str):
         def worker():

@@ -19,7 +19,7 @@ class ReadingPracticeWidget(QWidget):
 
         # Title line (optional)
         self.title_lbl = QLabel("")
-        self.title_lbl.setStyleSheet("font-weight:600; color:#f6e58d;")
+        self.title_lbl.setStyleSheet("font-weight:600; color:#184e77;")
 
         self.passage = QTextEdit()
         self.passage.setReadOnly(True)
@@ -69,17 +69,17 @@ class ReadingPracticeWidget(QWidget):
             self.level_cb.addItem(lvl)
 
     def _reload_sets(self, level: str):
-     self.set_cb.clear()
-     paths = list_reading_sets(level) or []
+        self.set_cb.clear()
+        paths = list_reading_sets(level) or []
 
-     if not paths:
-        self.set_cb.addItem("(No sets found)")
-        self.set_cb.setItemData(0, "", Qt.UserRole)
-        return
+        if not paths:
+            self.set_cb.addItem("(No sets found)")
+            self.set_cb.setItemData(0, "", Qt.UserRole)
+            return
 
-     for i, p in enumerate(paths, start=1):
-        self.set_cb.addItem(f"Test {i}")
-        self.set_cb.setItemData(self.set_cb.count() - 1, str(p), Qt.UserRole)
+        for i, p in enumerate(paths, start=1):
+            self.set_cb.addItem(f"Test {i}")
+            self.set_cb.setItemData(self.set_cb.count() - 1, str(p), Qt.UserRole)
 
     def _clear_questions(self):
         while self.questions_layout.count():
@@ -156,7 +156,7 @@ class ReadingPracticeWidget(QWidget):
         if not isinstance(data, dict):
             QMessageBox.critical(self, "Reading", "Invalid JSON format (expected object).")
             return
-        
+
         print("Loaded keys:", list(data.keys()))
         print("questions len:", len((data.get("questions") or [])))
         self.current_data = data
@@ -200,7 +200,7 @@ class ReadingPracticeWidget(QWidget):
             # If no options, show a warning line inside the box
             if not opts:
                 warn = QLabel("No options found for this question (check JSON keys: options/choices).")
-                warn.setStyleSheet("color:#bdc3c7; font-size:11px;")
+                warn.setStyleSheet("color:#34a0a4; font-size:11px;")
                 v.addWidget(warn)
 
             self.questions_layout.addWidget(box)
@@ -233,7 +233,7 @@ class ReadingPracticeWidget(QWidget):
 
         STYLE_OK = """
             QGroupBox {
-                border: 2px solid #2ecc71;
+                border: 2px solid #99d98c;
                 border-radius: 10px;
                 margin-top: 8px;
                 padding: 8px;
@@ -251,7 +251,7 @@ class ReadingPracticeWidget(QWidget):
         """
         STYLE_EMPTY = """
             QGroupBox {
-                border: 2px solid #95a5a6;
+                border: 2px solid #34a0a4;
                 border-radius: 10px;
                 margin-top: 8px;
                 padding: 8px;

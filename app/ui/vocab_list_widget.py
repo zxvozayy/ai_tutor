@@ -23,7 +23,7 @@ class VocabListWidget(QtWidgets.QWidget):
         layout.setSpacing(6)
 
         self.info_label = QtWidgets.QLabel()
-        self.info_label.setStyleSheet("color:#bdc3c7; font-size:12px;")
+        self.info_label.setStyleSheet("color:#34a0a4; font-size:12px;")
 
         self.table = QtWidgets.QTableWidget(0, 2)
         self.table.setHorizontalHeaderLabels(["Word", "Definition"])

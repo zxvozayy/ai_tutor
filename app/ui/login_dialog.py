@@ -109,56 +109,57 @@ class LoginDialog(QtWidgets.QDialog):
     def _apply_style(self):
         self.setStyleSheet("""
         QDialog {
-            background: #eceff3;
-            color: #111827;
+            background: #f0f7f4;
+            color: #184e77;
             font-family: "Segoe UI";
             font-size: 14px;
         }
 
         QFrame#Card {
             background: #ffffff;
-            border: 1px solid rgba(17,24,39,0.10);
+            border: 1px solid #b5e48c;
             border-radius: 18px;
         }
 
         QLabel#Title {
             font-size: 22px;
             font-weight: 800;
-            color: #111827;
+            color: #184e77;
             margin-top: 6px;
         }
 
         QLabel#Subtitle {
-            color: rgba(17,24,39,0.65);
+            color: #34a0a4;
             margin-bottom: 6px;
         }
 
         QLineEdit#Input {
             background: #ffffff;
-            border: 1px solid rgba(17,24,39,0.18);
+            border: 1px solid #b5e48c;
             border-radius: 12px;
             padding: 10px 12px;
             min-height: 40px;
+            color: #184e77;
         }
 
         QLineEdit#Input:focus {
-            border: 1px solid rgba(255,159,28,0.95);
+            border: 1px solid #168aad;
         }
 
         QCheckBox#Check {
-            color: rgba(17,24,39,0.85);
+            color: #184e77;
             spacing: 10px;
         }
 
         QLabel#Status {
-            color: #b91c1c;
+            color: #e74c3c;
             min-height: 18px;
             padding-top: 2px;
         }
 
         QPushButton#PrimaryBtn {
-            background: #ff9f1c;
-            color: #1f2937;
+            background: #52b69a;
+            color: #184e77;
             border: none;
             border-radius: 12px;
             padding: 10px;
@@ -167,16 +168,16 @@ class LoginDialog(QtWidgets.QDialog):
         }
 
         QPushButton#PrimaryBtn:hover {
-            background: #ff8c00;
+            background: #34a0a4;
         }
 
         QPushButton#PrimaryBtn:pressed {
-            background: #e67e00;
+            background: #168aad;
         }
 
         QPushButton#PrimaryBtn:disabled {
-            background: rgba(255,159,28,0.45);
-            color: rgba(31,41,55,0.55);
+            background: rgba(82,182,154,0.45);
+            color: rgba(24,78,119,0.55);
         }
         """)
 
