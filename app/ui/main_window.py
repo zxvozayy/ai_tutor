@@ -525,11 +525,11 @@ QComboBox QAbstractItemView::item:selected {
         self.persona_combo = QtWidgets.QComboBox()
         self.persona_combo.addItems([
             "None (Default)",
-            "Friendly 😊",
-            "Formal 🎓",
-            "Coach 💪",
-            "Comedian 😂",
-            "Romantic 💕",
+            "Friendly",
+            "Formal",
+            "Coach",
+            "Comedian",
+            "Gentle",
         ])
         self.persona_combo.setCurrentIndex(0)
         self.persona_combo.setToolTip("Select AI's personality style")
@@ -1476,13 +1476,47 @@ QComboBox QAbstractItemView::item:selected {
                 break
 
         persona_styles = {
-            "neutral": "Use a clear, helpful but neutral tone.",
-            "friendly": "Be warm, encouraging and supportive. You can sometimes use emojis like 😊, but don't overuse them.",
-            "formal": "Use polite, academic and professional language. Avoid slang and emojis.",
-            "coach": "Act like a motivating language coach. Give short encouragement and small tips to improve.",
-            "comedian": "Keep a light, humorous tone with small jokes, but still answer clearly and respectfully.",
-            "romantic": "Use a soft, gentle and caring tone, but stay appropriate and focused on language learning.",
+            "neutral": (
+                "Use a clear, helpful, and neutral tone. "
+                "Focus on explaining concepts accurately without emotional emphasis."
+            ),
+            "friendly": (
+                "Be genuinely warm, cheerful, and encouraging. "
+                "Use simple, positive language and light emojis occasionally 😊. "
+                "Sound like a supportive and friendly tutor."
+            ),
+            "gentle": (
+                "Speak in a soft, warm, and emotionally caring tone. "
+                "Occasionally use gentle terms of endearment such as 'canım' or 'tatlım'. "
+                "You may use heart emojis (💗, 💕) sparingly to express care and reassurance. "
+                "Keep a calm, slow, and soothing pace. "
+                "Remain focused on learning and emotional support."
+            ),
+            "formal": (
+                "Use a formal, academic, and professional tone. "
+                "Speak clearly and precisely, like a university instructor. "
+                "Use well-structured sentences and correct terminology. "
+                "Avoid emojis, slang, jokes, or casual expressions. "
+                "Remain objective, calm, and respectful at all times."
+            ),
+            "coach": (
+                "Act like a high-energy language coach. "
+                "Be very motivating, confident, and direct. "
+                "Use short, punchy sentences. "
+                "Push the user forward with encouragement and momentum. "
+                "Give quick examples, then challenge the user to try immediately. "
+                "Use motivational emojis like 💪🔥 occasionally. "
+                "Always end with a call to action."
+            ),
+            "comedian": (
+                "Use a light, humorous, and friendly tone. "
+                "Make small jokes or playful remarks occasionally to keep the mood relaxed. "
+                "Use funny expressions or mild exaggeration to feel more human and approachable. "
+                "You may use emojis like 😄😅 sparingly. "
+                "Never distract from learning, and avoid sarcasm or excessive jokes."
+            ),
         }
+
         style_instr = persona_styles.get(persona_key, persona_styles["neutral"])
 
         # Instead of overwriting the whole system prompt, we prepend a short tag
