@@ -1324,11 +1324,11 @@ QComboBox QAbstractItemView::item:selected {
         )
 
     def _build_grammar_html(self, result: dict) -> str:
-        """
-        Build HTML with grammar error highlighting.
-        """
-        original = result.get("original", "")
-        errors = result.get("errors", [])
+    
+        import urllib.parse
+
+        original = (result.get("original") or "")
+        errors = result.get("errors") or []
 
         if not original:
             return ""
@@ -1336,54 +1336,105 @@ QComboBox QAbstractItemView::item:selected {
         if not errors:
             return self._escape_html(original)
 
-        # Sort errors by start position
-        try:
-            sorted_errors = sorted(errors, key=lambda e: e.get("start", 0))
-        except Exception:
-            sorted_errors = errors
+        n = len(original)
+
+        def clamp_span(s: int, e: int) -> tuple[int, int]:
+            s = 0 if s is None else int(s)
+            e = 0 if e is None else int(e)
+            if s < 0:
+                s = 0
+            if e < 0:
+                e = 0
+            if s > n:
+                s = n
+            if e > n:
+                e = n
+            if e < s:
+                e = s
+            return s, e
+
+        repaired = []
+        cursor = 0  # where we last placed a highlight, helps with repeated words
+
+        for err in errors:
+            if not isinstance(err, dict):
+                continue
+
+            token = (err.get("original") or "").strip()
+            suggestion = err.get("suggestion") or ""
+
+            start = err.get("start", None)
+            end = err.get("end", None)
+
+            # 1) Try to use/repair by matching the reported token text in the sentence
+            placed = False
+            if token:
+                low_text = original.lower()
+                low_tok = token.lower()
+
+                # prefer finding after cursor (to handle repeated words)
+                idx = low_text.find(low_tok, max(cursor, 0))
+                if idx != -1:
+                    s, e = idx, idx + len(token)
+                    repaired.append({"start": s, "end": e, "suggestion": suggestion})
+                    cursor = e
+                    placed = True
+
+            # 2) If token match didn't work, fall back to provided start/end (clamped)
+            if not placed:
+                try:
+                    s, e = clamp_span(start, end)
+
+                    # If backend gives a zero-length span, try a tiny salvage:
+                    # expand by 1 char if possible (still better than nothing)
+                    if s == e and s < n:
+                        e = s + 1
+
+                    # Avoid adding completely empty spans at end-of-string
+                    if s < e:
+                        repaired.append({"start": s, "end": e, "suggestion": suggestion})
+                        cursor = max(cursor, e)
+                except Exception:
+                    # last resort: skip this error only
+                    continue
+
+        if not repaired:
+            return self._escape_html(original)
+
+        # Sort and build HTML; avoid overlaps so we don't generate broken markup
+        repaired.sort(key=lambda x: int(x["start"]))
 
         html_parts = []
         pos = 0
 
-        for err in sorted_errors:
-            try:
-                start = err.get("start", 0)
-                end = err.get("end", start)
-                suggestion = err.get("suggestion", "")
+        for err in repaired:
+            s = int(err["start"])
+            e = int(err["end"])
 
-                # Validate indices
-                if start < 0 or end > len(original) or start >= end or start < pos:
-                    continue
-
-                # Add text before error
-                if pos < start:
-                    normal_chunk = original[pos:start]
-                    html_parts.append(self._escape_html(normal_chunk))
-
-                # Add error with underline and link
-                error_text = original[start:end]
-                suggestion_escaped = self._escape_html(suggestion)
-                error_escaped = self._escape_html(error_text)
-
-                # Create grammar error link
-                href = "grammar://" + urllib.parse.quote(suggestion)
-                html_parts.append(
-                    f'<a href="{href}" class="grammar-error" '
-                    f'title="Suggestion: {suggestion_escaped}">'
-                    f'{error_escaped}</a>'
-                )
-
-                pos = end
-
-            except Exception:
+            if s < pos:
+                # overlapping; skip to keep markup sane
+                continue
+            if s >= e or s > n or e > n:
                 continue
 
-        # Add remaining text
-        if pos < len(original):
+            html_parts.append(self._escape_html(original[pos:s]))
+
+            wrong = original[s:e]
+            suggestion = err.get("suggestion") or ""
+            href = "grammar://" + urllib.parse.quote(suggestion)
+
+            html_parts.append(
+                f'<a href="{href}" '
+                f'style="text-decoration: underline; text-decoration-color: #f1c40f; color: #f1c40f;">'
+                f'{self._escape_html(wrong)}</a>'
+            )
+
+            pos = e
+
+        if pos < n:
             html_parts.append(self._escape_html(original[pos:]))
 
         return "".join(html_parts)
-
     # =============================================================
     #  Chat - FIXED VERSION
     # =============================================================
@@ -1453,47 +1504,46 @@ QComboBox QAbstractItemView::item:selected {
         threading.Thread(target=worker, daemon=True).start()
 
     def _append_user_with_grammar(self, text: str):
-        """
-        Display user message with grammar checking and error highlighting.
-        Errors are shown with yellow wavy underline - hover to see correction.
-        """
+    
         checker = getattr(self.engine, "check_grammar", None)
-        def _normalize_for_grammar(s: str) -> str:
-        # Keep characters same but normalize newlines and spaces deterministically
-        s = s.replace("\r\n", "\n").replace("\r", "\n")
-        # Do NOT strip() here; it changes indices. Just normalize tabs.
-        s = s.replace("\t", " ")
-        return s
 
-    # If no grammar checker, just show plain text
+        def _normalize_for_grammar(s: str) -> str:
+            # Keep indices stable (don't strip!)
+            s = s.replace("\r\n", "\n").replace("\r", "\n")
+            s = s.replace("\t", " ")
+            return s
+
+        # If no grammar checker, just show plain text
         if not callable(checker):
             self.history.append_user(text)
             return
 
+        norm = _normalize_for_grammar(text)
+
         try:
-            # Call grammar checker
-            norm = _normalize_for_grammar(text)
-
-            result = checker(norm)
-
+            result = checker(norm) or {}
             errors = result.get("errors", []) or []
+        except Exception as e:
+            print(f"[Grammar check failed] {e}")
+            result = {"original": norm, "corrected": norm, "errors": []}
+            errors = []
 
-            # IMPORTANT: display the same normalized string you checked
-            self.history.append_user(norm, grammar_errors=errors)
+        # ✅ Append exactly once
+        self.history.append_user(norm, grammar_errors=errors)
 
-# Store for summary reports
+        # ✅ Store for summary reports safely
         self._grammar_events.append({
-            "original": result.get("original", text),
-            "corrected": result.get("corrected", text),
+            "original": result.get("original", norm),
+            "corrected": result.get("corrected", norm),
             "errors": errors,
         })
 
-        # Show corrected version if there are errors (as a tutor hint)
-        if errors and len(errors) > 0:
-            corrected = result.get("corrected", "").strip()
-            if corrected and corrected != text:
-                hint = f"✅ Correct version: {corrected}"
-                self.history.append_bot(hint, [])
+        # Optional tutor hint
+        if errors:
+            corrected = (result.get("corrected") or "").strip()
+            if corrected and corrected != norm:
+                self.history.append_bot(f"✅ Correct version: {corrected}", [])
+
 
     # =============================================================
     #  STT
